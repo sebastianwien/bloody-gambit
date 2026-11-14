@@ -7,4 +7,3 @@ playwright-report
 .DS_Store
 .vitest
 dist-online
-.online.env

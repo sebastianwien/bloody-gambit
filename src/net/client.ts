@@ -22,6 +22,15 @@ export function serverUrl(): string {
 }
 
 /**
+ * Gibt es einen Raumserver? Ein Bau ohne Server (VITE_ONLINE=off, z. B. die statische Seite auf GitHub Pages)
+ * bietet Online nur an, wenn die Adresse per ?server=... mitkommt.
+ */
+export function onlineAvailable(): boolean {
+  const env = (import.meta as unknown as { env?: Record<string, string> }).env ?? {};
+  return env.VITE_ONLINE !== 'off' || !!env.VITE_SERVER_URL || new URLSearchParams(location.search).has('server');
+}
+
+/**
  * WebSocket-Verbindung zum Raumserver mit automatischem Wiederverbinden.
  * Raumcode und Platz-Token liegen nur im sessionStorage dieses Tabs.
  */

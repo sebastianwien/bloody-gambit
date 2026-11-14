@@ -8,6 +8,7 @@ import { LEVEL_NAMES, type AiLevel } from './ai/levels.ts';
 import { shouldShowBattle } from './battle/kit.ts';
 import { BattleRunner } from './battle/runner.ts';
 import { GameController, type GameSetup } from './game/controller.ts';
+import { onlineAvailable } from './net/client.ts';
 import { loadGame, loadSettings, saveGame, saveSettings, type Settings } from './game/settings.ts';
 import type { Actor } from './scene/actor.ts';
 import { AtlasSprites } from './scene/atlasSprites.ts';
@@ -134,7 +135,7 @@ export class App {
           () => this.showMenu(),
         ),
       local: () => this.startLocal(),
-      online: () => this.showOnline(),
+      online: onlineAvailable() ? () => this.showOnline() : undefined,
       settings: () => this.screens.settings(this.settings, (s) => this.changeSettings(s), () => this.showMenu()),
       credits: () => this.screens.credits(() => this.showMenu()),
     });

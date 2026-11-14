@@ -38,7 +38,7 @@ Einzige Wahrheit über den Stand. Nach einer Kontext-Zusammenfassung zuerst hier
 - **Verworfen**: König salute (keine sichtbare Bewegung) und block ohne Handposen (Schwert blieb unten), ersetzt durch victory2 und parry2 per REMAP.
 - **Geprüft Bild für Bild**: pb (Schildstoß, Stich, Sturz, Speer hoch), kq (Aufwärtsschnitt, Hieb, Spalten, Schwert hoch), pp (Abtrennen, Verbluten), rq (Pfeile, Sturz), qb (Köpfen, Verbeugung), bn (Zauber, Pferdesturz, Segnen), Damengang schräg.
 - **Bekannte Lücken**: Turm hat nur den Angriff (Bauwerk, stürzt ein); pincushion ist als Tod definiert, wird aber von keinem Opfer gewählt; Springer ohne Siegergeste und ohne zweite Brettanimation.
-- **Online-Test**: npm run build:online baut mit relativen Pfaden nach dist-online, läuft in jedem Unterordner. Rollout manuell mit tools/rollout-online.sh in einen zufällig benannten Unterordner; Ziel steht in .online.env (nicht im Repo).
+- **Rollout**: GitHub Pages (.github/workflows/pages.yml): bei jeder Änderung auf main Typprüfung, Tests, Bau mit relativen Pfaden (npm run build:online, VITE_ONLINE=off blendet den Menüpunkt Online aus), dann online unter sebastianwien.github.io/bloody-gambit. Raumserver ist nicht gehostet. Öffentliches Repo github.com/sebastianwien/bloody-gambit, Name seit 14.11. Bloody Gambit.
 
 ## Budget PixelLab
 

@@ -2,8 +2,9 @@
 import { spawn } from 'node:child_process';
 
 const procs = [
-  spawn('npm', ['run', 'dev'], { stdio: 'inherit' }),
-  spawn('npm', ['run', 'server'], { stdio: 'inherit' }),
+  // shell: unter Windows heißt npm "npm.cmd" und startet nur über die Shell
+  spawn('npm run dev', { stdio: 'inherit', shell: true }),
+  spawn('npm run server', { stdio: 'inherit', shell: true }),
 ];
 const stop = () => {
   for (const p of procs) p.kill('SIGTERM');

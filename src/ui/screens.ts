@@ -10,7 +10,8 @@ export interface MenuHandlers {
   resume?: () => void;
   single: () => void;
   local: () => void;
-  online: () => void;
+  /** Fehlt, wenn es keinen Raumserver gibt: dann erscheint der Menüpunkt nicht. */
+  online?: () => void;
   settings: () => void;
   credits: () => void;
 }
@@ -99,7 +100,7 @@ export class Screens {
     list.append(
       this.btn('Einzelspieler', h.single, 'menu-single'),
       this.btn('Zwei Spieler', h.local, 'menu-local'),
-      this.btn('Online', h.online, 'menu-online'),
+      ...(h.online ? [this.btn('Online', h.online, 'menu-online')] : []),
       this.btn('Einstellungen', h.settings, 'menu-settings'),
       this.btn('Mitwirkende', h.credits, 'menu-credits'),
     );

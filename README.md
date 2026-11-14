@@ -4,9 +4,11 @@ Browser-Schach im düsteren Mittelalter: Jedes Schlagen löst eine Pixel-Kampfsz
 
 Einzelspieler gegen den Computer (drei Stufen), zu zweit an einem Rechner oder online über einen Raumcode.
 
+**Spielen:** https://sebastianwien.github.io/bloody-gambit/ (aktueller Stand von `main`, dort ohne Online-Modus, weil kein Raumserver läuft)
+
 ## Starten
 
-Voraussetzung: Node 24 oder neuer (der Server läuft direkt aus TypeScript).
+Voraussetzung: Git und Node 24 oder neuer (der Server läuft direkt aus TypeScript). Unter Windows hilft `docs/einrichten-windows.md` Schritt für Schritt, auch mit der Claude-Desktop-App.
 
 ```bash
 npm install
@@ -44,7 +46,7 @@ npm run e2e
 | `server/`, `shared/` | Online-Server (WebSocket) und gemeinsames Protokoll |
 | `art/` | Rohbilder der Figuren: `art/chars` (Brett), `art/battle` (Kampf, 128 px) |
 | `public/assets/` | Gepackte Sprite-Atlanten, aus `art/` erzeugt |
-| `tools/` | Atlas-Packer, Bild-für-Bild-Prüfung, Online-Rollout |
+| `tools/` | Atlas-Packer, Bild-für-Bild-Prüfung |
 
 Stand, Entscheidungen und bekannte Lücken stehen in `fortschritt.md`. Die Phasen im Überblick: `vorschau.md`.
 
@@ -57,6 +59,10 @@ Eingeladene dürfen direkt auf `main` hochladen.
 3. Committen mit einem Satz dazu, was sich im Spiel sichtbar ändert, dann hochladen.
 
 Für größere Umbauten lohnt ein eigener Branch mit Pull Request, damit jemand drüberschauen kann.
+
+**Rollout:** Jede Änderung auf `main` geht automatisch online (`.github/workflows/pages.yml`). Vorher laufen Typprüfung und Tests, bei Rot bleibt die alte Fassung stehen.
+
+Wer mit Claude Code arbeitet: `CLAUDE.md` enthält Befehle und Regeln des Projekts.
 
 Gute Einstiege:
 
