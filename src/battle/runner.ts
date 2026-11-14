@@ -157,15 +157,18 @@ export class BattleRunner {
   }
 
   /** Laufen mit Laufbildern oder Schaukeln. */
-  private async walk(a: Actor, tx: number, ty: number, speed = 1) {
+  /** faceTo: Blick bleibt auf diese Figur gerichtet (seitwärts oder rückwärts gehen statt umdrehen). */
+  private async walk(a: Actor, tx: number, ty: number, speed = 1, faceTo?: Actor) {
     const sx = a.bx;
     const sy = a.by;
     const d = Math.hypot(tx - sx, ty - sy);
     if (d < 0.02) return;
     const from = boardToScreen(sx, sy, this.stage.flipped);
     const to = boardToScreen(tx, ty, this.stage.flipped);
-    a.dir = dirFromDelta(to.x - from.x, to.y - from.y);
-    const own = this.stage.srcFor(a).frames(a.kind, a.side, 'walk', a.dir).length > 1;
+    // Mit faceTo bleibt die vorher gesetzte Blickrichtung zum Gegner stehen
+    if (!faceTo) a.dir = dirFromDelta(to.x - from.x, to.y - from.y);
+    // Laufbilder nur, wenn Blick und Laufrichtung übereinstimmen (sonst Schaukeln, kein Rückwärts-Laufbild)
+    const own = !faceTo && this.stage.srcFor(a).frames(a.kind, a.side, 'walk', a.dir).length > 1;
     a.play(own ? 'walk' : 'idle', true);
     let lastStep = -1;
     await this.t.run(Math.min(1.6, 0.25 + d * 0.32) / speed, (k) => {
@@ -227,9 +230,11 @@ export class BattleRunner {
           if (Math.abs(pa.x - pv.x) < 6) side = pv.x < 480 ? 1 : -1;
           const gap = a.kind === 'n' || v.kind === 'n' ? 46 : 34;
           const target = screenToBoard(pv.x + side * gap, pv.y, st.flipped);
-          await this.walk(a, target.x, target.y, 1.6);
+          // Beide schauen sich schon beim Aufstellen an
           a.dir = side > 0 ? 'w' : 'e';
           v.dir = side > 0 ? 'e' : 'w';
+          await this.walk(a, target.x, target.y, 1.6, v);
+          a.dir = side > 0 ? 'w' : 'e';
         }
         v.play('idle', true);
         await this.t.wait(0.18);
