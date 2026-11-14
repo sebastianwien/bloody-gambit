@@ -1,4 +1,4 @@
-# Wolfsschach - Vorschau
+# Bloody Gambit - Vorschau
 
 Browser-Schach im düsteren Mittelalter: Jedes Schlagen löst eine Pixel-Kampfszene aus.
 
@@ -37,7 +37,7 @@ npm run build && npm run preview
 Server als Docker-Container:
 
 ```bash
-docker build -t wolfsschach-server . && docker run --rm -p 8790:8790 wolfsschach-server
+docker build -t bloody-gambit-server . && docker run --rm -p 8790:8790 bloody-gambit-server
 ```
 
 Tests:

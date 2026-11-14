@@ -9,7 +9,7 @@ export interface NetEvents {
   connection?(status: 'connecting' | 'open' | 'lost'): void;
 }
 
-const SESSION_KEY = 'wolfsschach.online.v1';
+const SESSION_KEY = 'bloodygambit.online.v1';
 
 /** Server-Adresse: ?server=..., VITE_SERVER_URL oder gleicher Rechner auf Port 8790. */
 export function serverUrl(): string {

@@ -1,5 +1,5 @@
 /** Arbeitstitel an genau einer Stelle. */
-export const GAME_TITLE = 'Wolfsschach';
+export const GAME_TITLE = 'Bloody Gambit';
 export const GAME_VERSION = '0.1.0';
 
 /** Logische Auflösung, wird ganzzahlig bzw. pixelig hochskaliert. */

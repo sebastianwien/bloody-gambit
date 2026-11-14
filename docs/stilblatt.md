@@ -1,4 +1,4 @@
-# Stil-Blatt Wolfsschach
+# Stil-Blatt Bloody Gambit
 
 Referenz für jedes Bild im Spiel, ob von PixelLab, OpenAI oder im Code gezeichnet.
 

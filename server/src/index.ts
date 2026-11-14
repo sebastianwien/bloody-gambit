@@ -4,7 +4,7 @@ import type { ServerMsg } from '../../shared/protocol.ts';
 import { RoomManager, type Conn } from './rooms.ts';
 
 /**
- * Wolfsschach-Server: WebSocket-Räume im Speicher, prüft jeden Zug autoritativ.
+ * Bloody-Gambit-Server: WebSocket-Räume im Speicher, prüft jeden Zug autoritativ.
  * Keine Konten, keine Nutzerdaten, keine Logs mit Inhalten.
  */
 const port = Number(process.env.PORT ?? 8790);
@@ -63,6 +63,6 @@ setInterval(() => {
   }
 }, 15_000);
 
-http.listen(port, () => console.log(`Wolfsschach-Server auf Port ${port}`));
+http.listen(port, () => console.log(`Bloody-Gambit-Server auf Port ${port}`));
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => process.exit(0));

@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 source .online.env
 [[ -n "$TARGET" && -n "$BASE_URL" ]] || { echo ".online.env braucht TARGET und BASE_URL"; exit 1; }
 if [[ -z "$SLUG" ]]; then
-  SLUG="wolfsschach-$(openssl rand -hex 8)"
+  SLUG="bloody-gambit-$(openssl rand -hex 8)"
   echo "SLUG=$SLUG" >> .online.env
 fi
 npm run -s build:online

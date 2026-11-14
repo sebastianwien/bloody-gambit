@@ -23,8 +23,8 @@ export const DEFAULT_SETTINGS: Settings = {
   seen: [],
 };
 
-const KEY = 'wolfsschach.settings.v1';
-const SAVE_KEY = 'wolfsschach.save.v1';
+const KEY = 'bloodygambit.settings.v1';
+const SAVE_KEY = 'bloodygambit.save.v1';
 
 /** Alle Zugriffe auf den Browser-Speicher sind abgesichert (privater Modus, gesperrter Speicher). */
 function read(key: string): string | null {

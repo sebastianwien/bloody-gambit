@@ -1,5 +1,5 @@
 /**
- * Stil-Blatt Wolfsschach: eine Palette für alles, was im Code gezeichnet wird.
+ * Stil-Blatt Bloody Gambit: eine Palette für alles, was im Code gezeichnet wird.
  * Licht kommt von links oben (Mond) und warm von den Fackeln, Umriss in INK.
  * Abgeleitet aus bilder/moodboard_duester.webp.
  */

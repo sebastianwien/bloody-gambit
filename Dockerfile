@@ -1,4 +1,4 @@
-# Wolfsschach-Server (WebSockets, Räume im Speicher). Nur der Server, das Spiel ist eine statische Seite (dist/).
+# Bloody-Gambit-Server (WebSockets, Räume im Speicher). Nur der Server, das Spiel ist eine statische Seite (dist/).
 FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=8790

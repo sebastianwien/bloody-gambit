@@ -1,4 +1,4 @@
-# Wolfsschach - Fortschritt
+# Bloody Gambit - Fortschritt
 
 Einzige Wahrheit über den Stand. Nach einer Kontext-Zusammenfassung zuerst hier lesen.
 

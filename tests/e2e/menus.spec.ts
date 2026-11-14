@@ -13,7 +13,7 @@ test('Titel, Menü, Einstellungen, Mitwirkende, Einzelspieler, Pause, Fortsetzen
   await page.getByTestId('battles-off').click();
   await page.getByTestId('gore-false').click();
   await page.getByTestId('back').click();
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('wolfsschach.settings.v1')!));
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('bloodygambit.settings.v1')!));
   expect(stored.battles).toBe('off');
   expect(stored.gore).toBe(false);
 
