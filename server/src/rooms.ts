@@ -27,6 +27,26 @@ interface Seat {
 
 const other = (c: Color): Color => (c === 'w' ? 'b' : 'w');
 
+/** Ein Raum ohne Verbindungen, so wie er einen Neustart des Servers übersteht. */
+export interface SavedRoom {
+  code: string;
+  clockConfig: ClockConfig | null;
+  /** left: Platz mit "Verlassen" geräumt, läuft also nicht in die Schonfrist. */
+  seats: Record<Color, { token: string; left: boolean } | null>;
+  moves: string[];
+  result: GameEnd | null;
+  clock: ClockState | null;
+  lastClockMark: number;
+  drawOffer: Color | null;
+  rematchOffer: Color | null;
+  game: number;
+}
+
+export interface SavedRooms {
+  savedAt: number;
+  rooms: SavedRoom[];
+}
+
 /**
  * Ein Raum mit zwei Plätzen. Autoritativ: prüft jeden Zug mit chess.js, führt die Uhr,
  * entscheidet Spielende, Abbruch und Revanche. Keine Nutzerdaten, nur Zufallstoken.
@@ -277,6 +297,44 @@ export class Room {
   empty(): boolean {
     return !this.seats.w?.conn && !this.seats.b?.conn;
   }
+
+  save(): SavedRoom {
+    const seat = (s: Seat | null) => (s ? { token: s.token, left: !s.conn && s.awaySince === null } : null);
+    return {
+      code: this.code,
+      clockConfig: this.clockConfig,
+      seats: { w: seat(this.seats.w), b: seat(this.seats.b) },
+      moves: this.rules.historyUci(),
+      result: this.result,
+      clock: this.clock && { ...this.clock },
+      lastClockMark: this.lastClockMark,
+      drawOffer: this.drawOffer,
+      rematchOffer: this.rematchOffer,
+      game: this.game,
+    };
+  }
+
+  /**
+   * Baut einen gespeicherten Raum wieder auf. Die Zeit, in der der Server weg war, zählt für
+   * keine Uhr; beide Spieler gelten als abwesend und haben die übliche Schonfrist zum Wiederverbinden.
+   */
+  static restore(s: SavedRoom, savedAt: number, now: () => number): Room {
+    const at = now();
+    const shift = at - savedAt;
+    const room = new Room(s.code, s.clockConfig, now);
+    for (const c of ['w', 'b'] as Color[]) {
+      const seat = s.seats[c];
+      room.seats[c] = seat ? { token: seat.token, conn: null, awaySince: seat.left ? null : at } : null;
+    }
+    for (const uci of s.moves) if (!room.rules.play(uciToMove(uci))) throw new Error(`Zug ${uci} passt nicht`);
+    room.result = s.result;
+    room.clock = s.clock && { ...s.clock, graceUntil: s.clock.graceUntil + shift };
+    room.lastClockMark = s.lastClockMark + shift;
+    room.drawOffer = s.drawOffer;
+    room.rematchOffer = s.rematchOffer;
+    room.game = s.game;
+    return room;
+  }
 }
 
 /** Verwaltet alle Räume im Speicher und übersetzt Nachrichten. */
@@ -386,6 +444,25 @@ export class RoomManager {
     if (!room) return;
     room.disconnect(conn);
     room.broadcast();
+  }
+
+  save(): SavedRooms {
+    return { savedAt: this.now(), rooms: [...this.rooms.values()].map((r) => r.save()) };
+  }
+
+  /** Lädt gespeicherte Räume; ein kaputter Raum wird übersprungen, statt den Start zu verhindern. */
+  restore(saved: SavedRooms): number {
+    let n = 0;
+    for (const s of saved.rooms ?? []) {
+      try {
+        const room = Room.restore(s, saved.savedAt, this.now);
+        this.rooms.set(room.code, room);
+        n++;
+      } catch {
+        /* Raum verworfen */
+      }
+    }
+    return n;
   }
 
   tick() {

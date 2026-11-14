@@ -169,3 +169,57 @@ describe('Schachuhr', () => {
     expect(c.state().clock).toBeNull();
   });
 });
+
+describe('Neustart des Servers', () => {
+  it('Partie mit Uhr übersteht Speichern und Laden, Ausfallzeit zählt nicht', () => {
+    const code = setup({ initial: 60_000, increment: 0 });
+    const tokenA = a.last('welcome').token;
+    const tokenB = b.last('welcome').token;
+    mgr.receive(a, { t: 'move', uci: 'e2e4', ply: 0 });
+    now += 1500 + 5000; // Schwarz denkt 5 s nach der Schonzeit
+    mgr.receive(a, { t: 'offerDraw' }); // schickt einen frischen Stand
+    const before = a.state().clock!.b;
+    expect(before).toBe(55_000);
+
+    // Durch JSON wie in der Datei
+    const saved = JSON.parse(JSON.stringify(mgr.save()));
+    now += 20_000; // Server 20 s weg
+    const fresh = new RoomManager(() => now);
+    expect(fresh.restore(saved)).toBe(1);
+
+    // Beide abwesend mit voller Schonfrist, Wiederverbinden mit dem alten Token
+    const a2 = new FakeConn();
+    fresh.receive(a2, { t: 'resume', code, token: tokenA });
+    expect(a2.last('welcome').color).toBe('w');
+    let st = a2.state();
+    expect(st.moves).toEqual(['e2e4']);
+    expect(st.players).toEqual({ w: 'here', b: 'away' });
+    expect(st.awayDeadline).toBe(now + 60_000);
+    expect(st.drawOffer).toBe('w');
+    expect(st.clock!.b).toBe(before);
+
+    const b2 = new FakeConn();
+    fresh.receive(b2, { t: 'resume', code, token: tokenB });
+    fresh.receive(b2, { t: 'move', uci: 'e7e5', ply: 1 });
+    st = b2.state();
+    expect(st.moves).toEqual(['e2e4', 'e7e5']);
+    expect(st.clock!.b).toBe(before);
+    expect(st.clock!.running).toBe('w');
+  });
+
+  it('wer nicht zurückkommt, verliert nach der Schonfrist; kaputte Räume werden übersprungen', () => {
+    setup();
+    mgr.receive(a, { t: 'move', uci: 'e2e4', ply: 0 });
+    const saved = JSON.parse(JSON.stringify(mgr.save()));
+    saved.rooms.push({ ...saved.rooms[0], code: 'KAPUT', moves: ['e2e5'] });
+    const fresh = new RoomManager(() => now);
+    expect(fresh.restore(saved)).toBe(1);
+    expect(fresh.rooms.has('KAPUT')).toBe(false);
+
+    const a2 = new FakeConn();
+    fresh.receive(a2, { t: 'resume', code: saved.rooms[0].code, token: a.last('welcome').token });
+    now += 60_001;
+    fresh.tick();
+    expect(a2.state().result).toEqual({ winner: 'w', reason: 'abandon' });
+  });
+});

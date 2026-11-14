@@ -74,6 +74,7 @@ OpenAI (gpt-image-2): 2 Bilder (Figurenaufstellung, Hintergrund), ca. 0,15 $.
 - **Figurenvorlage:** gpt-image-2 Aufstellung frontal auf Grün, per image_to_pixelart (faithful) in Pixelart, je Figur 64x64 als Referenz für create_character v3.
 - **Springer:** v3 mit Referenz machte einen Ritter zu Fuß. Versuch 2 im Standard-Modus mit Pferdevorlage: Reiter klar, Stil etwas flacher. Kreuzähnliches Wappen per tools/fix_knight_shield.py übermalt (Auftrag: kein Kreuz).
 - **Online-Uhr:** statt Pausensignal vom Client gibt der Server nach jedem Zug Schonzeit (1,5 s, Schlagzug 6 s) für die Animation. Uhren laufen erst nach dem ersten weißen Zug.
+- **Räume überstehen einen Neustart:** mit `STATE_FILE` schreibt der Server beim Beenden (SIGTERM/SIGINT) alle Räume als JSON (Züge, Platz-Token, Uhr, Angebote) und lädt sie beim nächsten Start einmal. Beide Spieler gelten danach als abwesend und haben die üblichen 60 s zum Wiederverbinden, der Client verbindet sich ohnehin selbst neu. Die Ausfallzeit zählt für keine Uhr. Ohne `STATE_FILE` bleibt alles wie vorher; ein Absturz verliert die Räume weiterhin.
 - **Server in TypeScript ohne Build:** Node führt .ts per Type-Stripping aus (keine Parameter-Properties im Server-Code).
 - **Kampf aus:** kurzer Schlag mit Blutspritzer statt ganzer Szene.
 - **Schach-Einblendung** darf keine Klicks fangen (CSS mit ID-Selektor, war ein Fehler).
