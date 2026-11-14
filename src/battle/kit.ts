@@ -102,6 +102,7 @@ const GENERIC: Record<PieceSymbol, Finisher> = {
     build: (death) => [
       { t: 'approach', stop: 1.1 },
       { t: 'face' },
+      { t: 'rear' },
       { t: 'leap', height: 30 },
       { t: 'hit', blood: 26, shake: 6, sound: 'trample' },
       { t: 'death', variant: death },

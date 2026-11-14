@@ -41,6 +41,14 @@
               "Idle/animations/quirk/south/frame_008.png"
             ]
           },
+          "walknorth": {
+            "north": [
+              "Idle/animations/walknorth/north/frame_000.png",
+              "Idle/animations/walknorth/north/frame_001.png",
+              "Idle/animations/walknorth/north/frame_002.png",
+              "Idle/animations/walknorth/north/frame_003.png"
+            ]
+          },
           "attack": {
             "east": [
               "Idle/animations/attack/east/frame_000.png",
@@ -50,11 +58,29 @@
               "Idle/animations/attack/east/frame_004.png",
               "Idle/animations/attack/east/frame_005.png"
             ]
+          },
+          "walk": {
+            "north": [
+              "Idle/animations/walk/north/frame_000.png",
+              "Idle/animations/walk/north/frame_001.png",
+              "Idle/animations/walk/north/frame_002.png",
+              "Idle/animations/walk/north/frame_003.png",
+              "Idle/animations/walk/north/frame_004.png",
+              "Idle/animations/walk/north/frame_005.png"
+            ],
+            "south": [
+              "Idle/animations/walk/south/frame_000.png",
+              "Idle/animations/walk/south/frame_001.png",
+              "Idle/animations/walk/south/frame_002.png",
+              "Idle/animations/walk/south/frame_003.png",
+              "Idle/animations/walk/south/frame_004.png",
+              "Idle/animations/walk/south/frame_005.png"
+            ]
           }
         }
       }
     }
   ],
   "export_version": "3.1",
-  "export_date": "2026-11-14T12:36:43.915869"
+  "export_date": "2026-11-14T12:45:38.551523"
 }

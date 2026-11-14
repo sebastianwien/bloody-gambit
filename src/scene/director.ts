@@ -69,11 +69,16 @@ export class Director {
       const e = ease.inOut(t);
       a.bx = sx + (tx - sx) * e;
       a.by = sy + (ty - sy) * e;
-      if (!own) a.bob = t < 1 ? a.animT * 4 : 0;
+      // Turm gleitet (kein lebender Turm), alle anderen schaukeln ohne eigene Laufbilder
+      if (!own && a.kind !== 'r') a.bob = t < 1 ? a.animT * 4 : 0;
       const step = Math.floor(a.animT * 4);
       if (step !== lastStep && t < 1) {
         lastStep = step;
         this.hooks.footstep?.(a);
+        if (a.kind === 'r') {
+          const p = a.screen(this.stage.flipped);
+          this.stage.effects.dust(p.x, p.y, 3);
+        }
       }
     });
   }

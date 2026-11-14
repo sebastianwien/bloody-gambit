@@ -143,7 +143,7 @@ export class BattleRunner {
       const e = ease.inOut(k);
       a.bx = sx + (tx - sx) * e;
       a.by = sy + (ty - sy) * e;
-      if (!own) a.bob = k < 1 ? a.animT * 4 : 0;
+      if (!own && a.kind !== 'r') a.bob = k < 1 ? a.animT * 4 : 0;
       const step = Math.floor(a.animT * 4);
       if (step !== lastStep && k < 1) {
         lastStep = step;
@@ -233,6 +233,17 @@ export class BattleRunner {
         break;
       }
       case 'rear': {
+        const rearFrames = st.sprites.frames(a.kind, a.side, 'attack', a.dir);
+        if (rearFrames.length > 1) {
+          // Gezeichnetes Aufbäumen, Tritt am Ende
+          this.sfx('jump', a);
+          a.play('attack', false, 6);
+          const dir = this.toward(a, v);
+          await this.t.run(rearFrames.length / 6, (k) => {
+            a.ox = dir.x * 8 * Math.max(0, k - 0.6) * 2.5;
+          });
+          break;
+        }
         // Pferd steigt: nach hinten kippen, hoch, dann krachend nieder
         const back = this.toward(a, v).x >= 0 ? -1 : 1;
         this.sfx('jump', a);

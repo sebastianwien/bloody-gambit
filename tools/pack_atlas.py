@@ -23,6 +23,29 @@ def foot_y(img):
     return int(rows[-1]) + 1 if len(rows) else BASE
 
 
+def palette_of(images):
+    cols = set()
+    for im in images:
+        a = np.array(im)
+        m = a[..., 3] > 0
+        for c in a[m][:, :3]:
+            cols.add(tuple(int(x) for x in c))
+    return np.array(sorted(cols), dtype=np.int32)
+
+
+def snap(im, pal):
+    """Jedes Pixel auf die nächste Farbe der Ruhebilder (gegen Farbdrift der Animationen)."""
+    a = np.array(im).astype(np.int32)
+    m = a[..., 3] > 0
+    px = a[m][:, :3]
+    if not len(px):
+        return im
+    d = ((px[:, None, :] - pal[None, :, :]) ** 2).sum(axis=2)
+    a[m, :3] = pal[d.argmin(axis=1)]
+    a[..., 3] = np.where(m, 255, 0)
+    return Image.fromarray(a.astype(np.uint8))
+
+
 def main():
     entries = []  # (key, image, anchor_x, anchor_y)
     for kdir in sorted(CHARS.iterdir()):
@@ -36,15 +59,22 @@ def main():
         size = south.height
         fy = max(foot_y(Image.open(p).convert('RGBA')) for p in rot_dir.glob('*.png'))
         fy = min(fy, size) - 1
-        for p in rot_dir.glob('*.png'):
-            entries.append((f'{kind}/rot/{DIRS[p.stem]}', Image.open(p).convert('RGBA'), south.width / 2, fy))
+        rots = {p.stem: Image.open(p).convert('RGBA') for p in rot_dir.glob('*.png')}
+        pal = palette_of(rots.values())
+        for stem, im in rots.items():
+            entries.append((f'{kind}/rot/{DIRS[stem]}', im, south.width / 2, fy))
+        # Verworfene Animationen: art/chars/<kind>/SKIP, Zeilen "ordnername/richtung"
+        skip_file = kdir / 'SKIP'
+        skip = set(skip_file.read_text().split()) if skip_file.exists() else set()
         for anim_root in kdir.glob('*/animations/*'):
             anim = anim_root.name.lower().split('_')[0].split('-')[0]
+            if anim.startswith('walk'):
+                anim = 'walk'
             for d in anim_root.iterdir():
-                if d.name not in DIRS:
+                if d.name not in DIRS or f'{anim_root.name}/{d.name}' in skip:
                     continue
                 for i, fp in enumerate(sorted(d.glob('frame_*.png'))):
-                    im = Image.open(fp).convert('RGBA')
+                    im = snap(Image.open(fp).convert('RGBA'), pal)
                     # Größere Animationsleinwand ist mittig um die 64er-Leinwand gelegt
                     ax = im.width / 2
                     ay = fy + (im.height - size) / 2
