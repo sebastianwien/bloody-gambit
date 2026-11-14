@@ -33,6 +33,12 @@ Einzige Wahrheit über den Stand. Nach einer Kontext-Zusammenfassung zuerst hier
   - Pfeiltreffer ließen das Opfer bis zum nächsten Schritt weiß: Aufblitzen klingt nach 0,15 s ab.
 - **Springer neu (Wunsch Sebastian: brutaler, galoppieren statt fliegen)**: neue Bewegungen per skeleton-v3 (kick, rear_up+paw, fall_over, run). Finisher "hufe" für alle Opfer: Umdrehen und Ausschlagen mit den Hinterhufen (Bauer, Läufer, Dame fliegen weg, Springer stürzt gezeichnet zur Seite, Turm wird eingetreten) oder Aufbäumen und Niedertrampeln (Opfer duckt sich in Deckung, wird zerquetscht oder zerplatzt). Gezeichneter Sturz für jeden Kämpfer mit "die"-Bildern. Galopp auf dem Brett und beim Anlauf statt Bogensprung. Die Brettfigur ist jetzt die verkleinerte Kampf-Figur (tools/downscale_char.py), damit Brett und Kampf dasselbe Pferd zeigen; die alte Ruhe-Eigenheit des Springers entfällt. Packer: Trefferbild auch nach hinten (impactBack, back) und von Hand (IMPACT-Datei).
 - **Verworfen**: Rammen (headbutt) des Pferdes, Pferd liegt dabei flach (SKIP).
+- **Ton und Gang (14.11. abends)**: Rüstungsschritt (armorstep) für alle außer Springer und Turm, Wiehern (neigh) einmal pro Kampf beim ersten Angriff, beides prozedural (PixelLab-Sounds brauchen ein höheres Abo). Gehen: drei Schritte pro Sekunde (walkFps), etwa 1,4 Felder pro Sekunde, Schrittton sitzt auf den Laufbildern (Actor.stepIndex).
+- **Animationen komplett (14.11. abends, Wunsch Sebastian: hochwertiger, realer)**: Bauer, Läufer, Dame, König je mit die (rückwärts fallen), die2 (auf die Knie, vornüber), victory, parry, dazed, attack2, walk in der Seitenansicht; Läufer zusätzlich hurt. Alles skeleton-v3 mit Bibliotheksbewegungen (fall_back, slump_knees+fall_forward, raise_weapon, block, brace, dazed, bash, cast, chop, rising_cut, walk, hit), Verbeugung der Dame als eigene Posen. Steuerdateien je Figur: SKIP, REMAP, IMPACT, DROPFRAMES (neu: einzelne Bilder verwerfen, z. B. das aufrechte Zwischenbild bei verketteten Bewegungen). Abläufe: Bauer Schildstoß dann Speerstich, König Aufwärtsschnitt dann Hieb, Dame spaltet mit dem Hieb von oben, Läufer zaubert. Nach kurzem Schlag weicht das Opfer zurück (knockback), damit der längere Folgeschlag passt. Geköpft und Gespalten mit Taumeln, Beschleunigung, Nachfedern. Verbluten nach abgetrenntem Arm bleibt im Code (gezeichnete Bilder hätten beide Arme). Brett: Bauer, Dame, König gehen auch schräg mit Laufbildern (walkdiag ne/se, 8 Bilder).
+- **Verworfen**: König salute (keine sichtbare Bewegung) und block ohne Handposen (Schwert blieb unten), ersetzt durch victory2 und parry2 per REMAP.
+- **Geprüft Bild für Bild**: pb (Schildstoß, Stich, Sturz, Speer hoch), kq (Aufwärtsschnitt, Hieb, Spalten, Schwert hoch), pp (Abtrennen, Verbluten), rq (Pfeile, Sturz), qb (Köpfen, Verbeugung), bn (Zauber, Pferdesturz, Segnen), Damengang schräg.
+- **Bekannte Lücken**: Turm hat nur den Angriff (Bauwerk, stürzt ein); pincushion ist als Tod definiert, wird aber von keinem Opfer gewählt; Springer ohne Siegergeste und ohne zweite Brettanimation.
+- **Online-Test**: npm run build:online baut mit relativen Pfaden nach dist-online, läuft in jedem Unterordner. Rollout manuell mit tools/rollout-online.sh in einen zufällig benannten Unterordner; Ziel steht in .online.env (nicht im Repo).
 
 ## Budget PixelLab
 
@@ -53,6 +59,7 @@ Startwert: 40 Generierungen (Trial). Abbruchgrenze: unter 4.
 | Prototyp: Aufstellung 2x (1), Bauer 128 (2), Skelett (0,1), Speerhieb 8 Bilder auf 180er Leinwand (4) | 7,1 |
 | **Summe laut PixelLab** | **39,2 von 40, Rest 0,8** |
 | Guthaben (aufgeladen 10 $): 6 Figuren 128 px, rund 30 Bewegungen, Skelette | 0,69 $ verbraucht, 9,31 $ übrig |
+| Guthaben: 33 Bewegungen (Tode, Gesten, Paraden, Taumeln, zweite Angriffe, Gehen) | 0,71 $ verbraucht, 8,56 $ übrig |
 
 OpenAI (gpt-image-2): 2 Bilder (Figurenaufstellung, Hintergrund), ca. 0,15 $.
 
