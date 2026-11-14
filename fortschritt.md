@@ -22,6 +22,8 @@ Einzige Wahrheit über den Stand. Nach einer Kontext-Zusammenfassung zuerst hier
 - **Phase 10 Finisher und Sonderszenen** (5cdbe4f, a0c9dd7): eigene Finisher für pp (Stocherduell mit Gegenstoß, fliegendem Helm, Sternchen), np (Huftritt), bp (Kopfnuss), qp (Wegfegen), kp (Königlicher Tritt), rp (Meisterschuss), pn (Speer gegen Ross), nn (Tjost). Angriffsbilder aller sechs Figuren (Seitenansicht, gespiegelt), Kämpfer stellen sich seitlich auf. Schach: König zuckt, rotes Ausrufezeichen, Fanfare. Matt: König stürzt, Krone rollt. Patt: Fragezeichen, Schulterzucken. Sieg: Jubelhüpfen, Niederlage: hängende Köpfe. Umwandlung: Lichtblitz und Funken.
 - **Phase 11 Abschluss**: Playwright: komplette Partie gegen KI, komplette Online-Partie mit zwei Browsern (Matt, Revanche, Wiederverbinden, Aufgeben), Menüs, Ladezeit. Konsolenfehler in allen Tests null. Ladezeit bis Titel 156 ms (Produktions-Build lokal). npm run build erzeugt dist/ (1,3 MB). Server-Image per Docker gebaut und /health geprüft. Spielertest: Titel lesbarer gemacht, Statuszeile im Kampf leer, Fehlklick-Ton, Schach-Einblendung klickdurchlässig, Bilder laden ohne decode().
 
+- **Prototyp Kampf-Sprites (Wunsch Sebastian: detaillierter, Richtung MK, auf dem Brett)**: Bauer in 128 px (art/battle/p, public/assets/battle.*), im Kampf exakt 2x Zoom und halbe Zeichengröße, dadurch pixelgenau doppelt so detailliert. Speerhieb 8 Bilder (PixelLab drehte ihn nach Westen; per art/battle/p/REMAP als West-Angriff ohne Bild 1 genutzt, Osten gespiegelt). Abtrennen im Code (src/battle/dismember.ts) mit Gelenken aus estimate_skeleton (art/battle/p/joints.json): Arm fliegt, Stangenwaffe kippt separat, Stumpf mit Knochenpunkt, Fontäne. Stocherduell (pp) nutzt das. Andere Figuren noch ohne Kampf-Sprites.
+
 ## Budget PixelLab
 
 Startwert: 40 Generierungen (Trial). Abbruchgrenze: unter 4.
@@ -38,7 +40,8 @@ Startwert: 40 Generierungen (Trial). Abbruchgrenze: unter 4.
 | Laufen Vorlage Bauer n/s (n verworfen: falscher Wappenrock) | 2 |
 | Laufen v3: Bauer n, Dame n/s/e, König n/s/e, Läufer ne/se | 9 |
 | Turm-Laufen (abgebrochen, nicht berechnet) | 0 |
-| **Summe laut PixelLab** | **32,1 von 40, Rest 7,9** |
+| Prototyp: Aufstellung 2x (1), Bauer 128 (2), Skelett (0,1), Speerhieb 8 Bilder auf 180er Leinwand (4) | 7,1 |
+| **Summe laut PixelLab** | **39,2 von 40, Rest 0,8** |
 
 OpenAI (gpt-image-2): 2 Bilder (Figurenaufstellung, Hintergrund), ca. 0,15 $.
 

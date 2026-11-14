@@ -52,6 +52,8 @@ export interface Prop {
   bounce: number;
   /** Zeichnen ohne Physik (z. B. fest steckende Pfeile). */
   still?: boolean;
+  /** Zeichenmaßstab (Teile von Kampf-Sprites: 0.5). */
+  scale: number;
 }
 
 const rnd = mulberry32(99);
@@ -170,7 +172,7 @@ export class Effects implements Layer {
   }
 
   /** Zerlegt ein Bild in Pixelbrocken, die auseinanderfliegen. */
-  shatter(img: CanvasImageSource, w: number, h: number, x0: number, y0: number, footY: number, power = 1, chunk = 3, kindColor?: (r: number, g: number, b: number) => string) {
+  shatter(img: CanvasImageSource, w: number, h: number, x0: number, y0: number, footY: number, power = 1, chunk = 3, kindColor?: (r: number, g: number, b: number) => string, scale = 1) {
     const c = makeCanvas(w, h);
     const g = ctx2d(c);
     g.drawImage(img, 0, 0);
@@ -181,8 +183,8 @@ export class Effects implements Layer {
         const i = ((y + 1) * w + x + 1) * 4;
         if (i >= d.length || d[i + 3] < 128) continue;
         const color = kindColor ? kindColor(d[i], d[i + 1], d[i + 2]) : `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`;
-        const wx = x0 + x;
-        const z = footY - (y0 + y);
+        const wx = x0 + x * scale;
+        const z = footY - (y0 + y * scale);
         const dx = wx - cx;
         this.particles.push({
           x: wx,
@@ -193,7 +195,7 @@ export class Effects implements Layer {
           vz: (30 + rnd() * 120) * power,
           life: 2.5,
           color,
-          size: chunk - 1,
+          size: Math.max(1, Math.round((chunk - 1) * scale)),
           kind: 'chunk',
         });
       }
@@ -201,7 +203,7 @@ export class Effects implements Layer {
   }
 
   addProp(p: Partial<Prop> & Pick<Prop, 'img' | 'w' | 'h' | 'x' | 'y'>): Prop {
-    const prop: Prop = { z: 0, vx: 0, vy: 0, vz: 0, rot: 0, vrot: 0, px: p.w / 2, py: p.h, alpha: 1, life: 99, gravity: true, bleed: 0, bounce: 0.3, ...p };
+    const prop: Prop = { z: 0, vx: 0, vy: 0, vz: 0, rot: 0, vrot: 0, px: p.w / 2, py: p.h, alpha: 1, life: 99, gravity: true, bleed: 0, bounce: 0.3, scale: 1, ...p };
     this.props.push(prop);
     return prop;
   }
@@ -297,6 +299,7 @@ export class Effects implements Layer {
     g.globalAlpha = p.alpha;
     g.translate(Math.round(p.x), Math.round(p.y - p.z));
     if (p.rot) g.rotate(p.rot);
+    if (p.scale !== 1) g.scale(p.scale, p.scale);
     g.drawImage(p.img, -p.px, -p.py);
     g.restore();
   }

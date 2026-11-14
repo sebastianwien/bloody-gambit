@@ -8,6 +8,7 @@ import { ctx2d, makeCanvas } from '../scene/sprites.ts';
 import type { Stage } from '../scene/stage.ts';
 import { ease } from '../scene/tween.ts';
 import { hashString, mulberry32 } from '../util/random.ts';
+import { sever } from './dismember.ts';
 import { planBattle, type BattlePlan, type DeathVariant, type Gag, type HitSound, type Step } from './kit.ts';
 
 export type SfxName =
@@ -81,22 +82,43 @@ export class BattleRunner {
       st.camera.zoom = cam0.zoom + (zoom - cam0.zoom) * e;
       st.dim = e;
     });
+    const useHd = !!st.hd?.kinds.has(a.kind) && !!st.hd?.kinds.has(v.kind);
+    let fightCam = { x: camX, y: camY - 18, zoom };
     for (const s of plan.steps) {
       this.hooks.step?.(s);
       await this.step(s, a, v, tx, ty);
-      if (s.t === 'approach') await camTween;
+      if (s.t === 'approach') {
+        await camTween;
+        if (useHd) {
+          // Nahkampf: exakt 2x Zoom auf die Kämpfer, dann Kampf-Sprites in doppelter Auflösung
+          const pa2 = this.pos(a);
+          const pv2 = this.pos(v);
+          const from = { ...st.camera };
+          const to = { x: (pa2.x + pv2.x) / 2, y: (pa2.y + pv2.y) / 2 - 30, zoom: 2 };
+          await this.t.run(0.35, (k) => {
+            const e = ease.inOut(k);
+            st.camera.x = from.x + (to.x - from.x) * e;
+            st.camera.y = from.y + (to.y - from.y) * e;
+            st.camera.zoom = from.zoom + (to.zoom - from.zoom) * e;
+          });
+          a.hd = v.hd = true;
+          fightCam = to;
+        }
+      }
     }
     // Angreifer geht aufs Zielfeld, Kamera zurück
     await Promise.all([
       this.walk(a, tx, ty),
       this.t.run(0.6, (k) => {
         const e = ease.inOut(k);
-        st.camera.x = camX + (cam0.x - camX) * e;
-        st.camera.y = camY - 18 + (cam0.y - (camY - 18)) * e;
-        st.camera.zoom = zoom + (cam0.zoom - zoom) * e;
+        st.camera.x = fightCam.x + (cam0.x - fightCam.x) * e;
+        st.camera.y = fightCam.y + (cam0.y - fightCam.y) * e;
+        st.camera.zoom = fightCam.zoom + (cam0.zoom - fightCam.zoom) * e;
         st.dim = 1 - e;
+        if (e > 0.5) a.hd = v.hd = false;
       }),
     ]);
+    a.hd = v.hd = false;
     st.camera.x = cam0.x;
     st.camera.y = cam0.y;
     st.camera.zoom = cam0.zoom;
@@ -136,7 +158,7 @@ export class BattleRunner {
     const from = boardToScreen(sx, sy, this.stage.flipped);
     const to = boardToScreen(tx, ty, this.stage.flipped);
     a.dir = dirFromDelta(to.x - from.x, to.y - from.y);
-    const own = this.stage.sprites.frames(a.kind, a.side, 'walk', a.dir).length > 1;
+    const own = this.stage.srcFor(a).frames(a.kind, a.side, 'walk', a.dir).length > 1;
     a.play(own ? 'walk' : 'idle', true);
     let lastStep = -1;
     await this.t.run(Math.min(1.6, 0.25 + d * 0.32) / speed, (k) => {
@@ -189,7 +211,7 @@ export class BattleRunner {
         this.face(a, v);
         this.face(v, a);
         // Mit Angriffsbildern (Seitenansicht) stellen sich beide seitlich auf
-        if (st.sprites.frames(a.kind, a.side, 'attack', 'e').length > 1) {
+        if (st.srcFor(a).frames(a.kind, a.side, 'attack', 'e').length > 1) {
           const pa = this.pos(a);
           const pv = this.pos(v);
           let dx = pv.x - pa.x;
@@ -210,7 +232,7 @@ export class BattleRunner {
         // Opfer stößt zuerst zu, der Angreifer weicht zurück
         const dir = this.toward(v, a);
         this.sfx('swing', v);
-        const vf = st.sprites.frames(v.kind, v.side, 'attack', v.dir);
+        const vf = st.srcFor(v).frames(v.kind, v.side, 'attack', v.dir);
         if (vf.length > 1) v.play('attack', false);
         await this.t.run(0.18, (k) => {
           v.ox = dir.x * 8 * Math.sin(k * Math.PI * 0.5);
@@ -233,7 +255,7 @@ export class BattleRunner {
         break;
       }
       case 'rear': {
-        const rearFrames = st.sprites.frames(a.kind, a.side, 'attack', a.dir);
+        const rearFrames = st.srcFor(a).frames(a.kind, a.side, 'attack', a.dir);
         if (rearFrames.length > 1) {
           // Gezeichnetes Aufbäumen, Tritt am Ende
           this.sfx('jump', a);
@@ -267,7 +289,7 @@ export class BattleRunner {
         // Sternchen kreisen über dem Kopf, Opfer schwankt
         const pv = this.pos(v);
         const f = this.frameOf(v);
-        const top = pv.y - f.ay + 6;
+        const top = pv.y - f.ay * st.scaleOf(v) + 6;
         const stars = [0, 1, 2].map(() => st.effects.addProp({ img: starImage(), w: 3, h: 3, x: pv.x, y: pv.y, z: 0, px: 1, py: 1, gravity: false, still: true, life: s.s + 0.2 }));
         this.sfx('grunt', v);
         await this.t.run(s.s, (k) => {
@@ -282,6 +304,50 @@ export class BattleRunner {
         v.rot = 0;
         break;
       }
+      case 'sever': {
+        const src = st.srcFor(v) as { jointsFor?(k: string, d: string): { joints: Record<string, [number, number]>; mirror: boolean } | null };
+        const jf = src.jointsFor?.(v.kind, v.dir);
+        if (!jf) break;
+        const f = this.frameOf(v);
+        const res = sever(f, jf.joints, s.part, jf.mirror);
+        if (!res) break;
+        const sc = st.scaleOf(v);
+        const pv = this.pos(v);
+        const dir = this.toward(a, v);
+        v.override = res.body;
+        v.play('idle', true);
+        this.sfx('slash', v);
+        this.sfx('scream', v);
+        st.shake(4);
+        st.effects.flash = 0.5;
+        // Abgetrenntes Teil fliegt mit Drehung davon und blutet
+        st.effects.addProp({
+          img: res.part, w: f.w, h: f.h,
+          x: pv.x + (res.center.x - f.ax) * sc, y: pv.y + 2,
+          z: (f.ay - res.center.y) * sc,
+          px: res.center.x, py: res.center.y,
+          vx: dir.x * 70 + (Math.random() - 0.5) * 30, vy: 12, vz: 150, vrot: (dir.x >= 0 ? 1 : -1) * 11,
+          bleed: 1.2, bounce: 0.35, life: 6, scale: sc,
+        });
+        // Die Waffe fällt klappernd um
+        if (res.weapon) {
+          const wpn = st.effects.addProp({
+            img: res.weapon, w: f.w, h: f.h, x: pv.x, y: pv.y + 1, z: 0,
+            px: f.ax, py: f.ay, gravity: false, life: 6, scale: sc,
+          });
+          const side = dir.x >= 0 ? 1 : -1;
+          this.t.run(0.5, (k) => (wpn.rot = side * (Math.PI / 2) * ease.in(k))).then(() => this.sfx('clank', v));
+        }
+        // Fontäne aus dem Stumpf, Opfer taumelt
+        const cutX = pv.x + (res.cut.x - f.ax) * sc;
+        const cutZ = (f.ay - res.cut.y) * sc;
+        await this.t.run(0.8, (k) => {
+          if (Math.random() < 0.8) st.effects.blood(cutX, pv.y, cutZ, 2, -dir.x * 0.4, 0.45, 1.2 - k * 0.6);
+          v.rot = Math.sin(k * Math.PI * 3) * 0.06;
+        });
+        v.rot = 0;
+        break;
+      }
       case 'helmet': {
         // Helm (obere Kopfpartie) fliegt in hohem Bogen davon
         const pv = this.pos(v);
@@ -289,7 +355,8 @@ export class BattleRunner {
         const { top } = opaqueRows(f.img, f.w, f.h);
         const helm = cutImage(f.img, 0, top, f.w, 6);
         const dir = this.toward(a, v);
-        st.effects.addProp({ img: helm, w: f.w, h: 6, x: pv.x, y: pv.y, z: f.ay - top, px: f.ax, py: 6, vx: dir.x * 70 + 10, vy: -10, vz: 170, vrot: 12, bounce: 0.5, life: 3 });
+        const hs = st.scaleOf(v);
+        st.effects.addProp({ img: helm, w: f.w, h: 6, x: pv.x, y: pv.y, z: (f.ay - top) * hs, px: f.ax, py: 6, vx: dir.x * 70 + 10, vy: -10, vz: 170, vrot: 12, bounce: 0.5, life: 3, scale: hs });
         this.sfx('clank', v);
         break;
       }
@@ -298,7 +365,7 @@ export class BattleRunner {
         break;
       case 'anim': {
         const who = s.who === 'a' ? a : v;
-        const frames = st.sprites.frames(who.kind, who.side, s.anim, who.dir);
+        const frames = st.srcFor(who).frames(who.kind, who.side, s.anim, who.dir);
         const dir = this.toward(who, s.who === 'a' ? v : a);
         if (frames.length > 1) {
           this.sfx('swing', who);
@@ -449,7 +516,7 @@ export class BattleRunner {
   }
 
   private frameOf(v: Actor) {
-    return v.frame(this.stage.sprites).f;
+    return v.frame(this.stage.srcFor(v)).f;
   }
 
   private async death(variant: DeathVariant, a: Actor, v: Actor) {
@@ -458,8 +525,9 @@ export class BattleRunner {
     const p = this.pos(v);
     const f = this.frameOf(v);
     const dir = this.toward(a, v);
-    const x0 = p.x - f.ax;
-    const y0 = p.y - f.ay;
+    const sc = st.scaleOf(v);
+    const x0 = p.x - f.ax * sc;
+    const y0 = p.y - f.ay * sc;
     this.sfx('scream', v);
     switch (variant) {
       case 'fall':
@@ -486,11 +554,11 @@ export class BattleRunner {
         const head = cutImage(f.img, 0, 0, f.w, neck);
         const body = cutImage(f.img, 0, neck, f.w, f.h - neck);
         v.visible = false;
-        const headProp = fx.addProp({ img: head, w: f.w, h: neck, x: p.x, y: p.y, z: f.ay - neck, px: f.ax, py: neck, vx: dir.x * 90 + 20, vy: dir.y * 30, vz: 160, vrot: dir.x >= 0 ? 9 : -9, bleed: 1, bounce: 0.45, life: 4 });
-        const bodyProp = fx.addProp({ img: body, w: f.w, h: f.h - neck, x: p.x, y: p.y, z: 0, px: f.ax, py: f.h - neck - (f.h - f.ay), gravity: false, still: true, life: 4 });
+        const headProp = fx.addProp({ img: head, w: f.w, h: neck, x: p.x, y: p.y, z: (f.ay - neck) * sc, px: f.ax, py: neck, vx: dir.x * 90 + 20, vy: dir.y * 30, vz: 160, vrot: dir.x >= 0 ? 9 : -9, bleed: 1, bounce: 0.45, life: 4, scale: sc });
+        const bodyProp = fx.addProp({ img: body, w: f.w, h: f.h - neck, x: p.x, y: p.y, z: 0, px: f.ax, py: f.h - neck - (f.h - f.ay), gravity: false, still: true, life: 4, scale: sc });
         this.sfx('slash', v);
         // Fontäne aus dem Hals
-        await this.t.run(0.7, () => fx.blood(p.x, p.y, f.ay - neck, 2, 0, 0.35, 1.3));
+        await this.t.run(0.7, () => fx.blood(p.x, p.y, (f.ay - neck) * sc, 2, 0, 0.35, 1.3));
         this.sfx('splat', v);
         await this.t.run(0.4, (k) => (bodyProp.rot = (dir.x >= 0 ? 1 : -1) * (Math.PI / 2) * ease.in(k)));
         this.sfx('bodyfall', v);
@@ -504,7 +572,7 @@ export class BattleRunner {
       case 'split': {
         const [l, r] = splitImage(f.img, f.w, f.h, dir.x >= 0 ? 0.25 : -0.25);
         v.visible = false;
-        const common = { w: f.w, h: f.h, x: p.x, y: p.y, z: 0, px: f.ax, py: f.ay, gravity: false, life: 3 };
+        const common = { w: f.w, h: f.h, x: p.x, y: p.y, z: 0, px: f.ax, py: f.ay, gravity: false, life: 3, scale: sc };
         const L = fx.addProp({ img: l, ...common });
         const R = fx.addProp({ img: r, ...common });
         this.sfx('splat', v);
@@ -531,7 +599,7 @@ export class BattleRunner {
         this.sfx('crunch', v);
         st.shake(6);
         fx.flash = 0.6;
-        fx.shatter(f.img, f.w, f.h, x0, y0, p.y, 1.1, 3);
+        fx.shatter(f.img, f.w, f.h, x0, y0, p.y, 1.1, 3 / sc, undefined, sc);
         fx.blood(p.x, p.y, 24, 40, dir.x, 1.6, 1);
         fx.pool(p.x, p.y, 9);
         await this.t.wait(1.2);
@@ -544,7 +612,7 @@ export class BattleRunner {
         await this.t.run(0.12, (k) => (v.scale = 1 - 0.0 * k));
         const flat = squashImage(f.img, f.w, f.h);
         v.visible = false;
-        const pr = fx.addProp({ img: flat, w: flat.width, h: flat.height, x: p.x, y: p.y + 2, px: flat.width / 2, py: flat.height, gravity: false, still: true, life: 1.6 });
+        const pr = fx.addProp({ img: flat, w: flat.width, h: flat.height, x: p.x, y: p.y + 2, px: flat.width / 2, py: flat.height, gravity: false, still: true, life: 1.6, scale: sc });
         fx.pool(p.x, p.y, 9);
         await this.t.wait(1.2);
         pr.life = 0.4;
@@ -560,10 +628,10 @@ export class BattleRunner {
         });
         v.flash = 0;
         v.visible = false;
-        const pr = fx.addProp({ img: burnt, w: f.w, h: f.h, x: p.x, y: p.y, px: f.ax, py: f.ay, gravity: false, still: true, life: 2 });
+        const pr = fx.addProp({ img: burnt, w: f.w, h: f.h, x: p.x, y: p.y, px: f.ax, py: f.ay, gravity: false, still: true, life: 2, scale: sc });
         await this.t.wait(0.4);
         pr.life = 0.01;
-        fx.shatter(burnt, f.w, f.h, x0, y0, p.y, 0.25, 2, () => (Math.random() < 0.5 ? PAL.stone2 : PAL.stone1));
+        fx.shatter(burnt, f.w, f.h, x0, y0, p.y, 0.25, 2 / sc, () => (Math.random() < 0.5 ? PAL.stone2 : PAL.stone1), sc);
         fx.smoke(p.x, p.y, 10, 8);
         await this.t.wait(0.9);
         break;
@@ -594,7 +662,7 @@ export class BattleRunner {
         });
         v.visible = false;
         st.shake(8);
-        fx.shatter(f.img, f.w, f.h, x0, y0, p.y, 0.55, 4);
+        fx.shatter(f.img, f.w, f.h, x0, y0, p.y, 0.55, 4 / sc, undefined, sc);
         fx.dust(p.x, p.y, 30, PAL.stone3);
         fx.blood(p.x, p.y, 40, 10, 0, 0.8, 0.8);
         await this.t.wait(1.2);

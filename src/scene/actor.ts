@@ -38,6 +38,8 @@ export class Actor {
   bob = 0;
   /** Umschauen im Ruhezustand: Restzeit der Kopfdrehung. */
   lookT = 0;
+  /** Im Kampf: hochaufgelöste Kampf-Sprites (halbe Größe gezeichnet, bei 2x Zoom pixelgenau). */
+  hd = false;
 
   constructor(kind: PieceSymbol, side: Color, sq: Square) {
     this.kind = kind;

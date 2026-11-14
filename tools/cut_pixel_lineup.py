@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 
 NAMES = ['p', 'n', 'b', 'r', 'q', 'k']
-CANVAS, FOOT = 64, 64
+CANVAS, FOOT = int(sys.argv[3]) if len(sys.argv) > 3 else 64, int(sys.argv[3]) if len(sys.argv) > 3 else 64
 
 def main(src, out):
     rgba = np.array(Image.open(src).convert("RGBA")).astype(int)

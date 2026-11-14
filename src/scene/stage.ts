@@ -37,6 +37,8 @@ export class Stage {
   screenLayers: Layer[] = [];
   camera = { x: VIEW_W / 2, y: VIEW_H / 2, zoom: 1, shake: 0 };
   readonly effects = new Effects();
+  /** Kampf-Sprites in doppelter Auflösung (nur für Figuren, die es dort gibt). */
+  hd: (SpriteSource & { kinds: Set<string>; jointsFor?(kind: string, dir: string): { joints: Record<string, [number, number]>; mirror: boolean } | null }) | null = null;
   /** Abdunkeln der Umgebung während eines Kampfes (0..1). */
   dim = 0;
   time = 0;
@@ -51,6 +53,16 @@ export class Stage {
     this.g.imageSmoothingEnabled = false;
     this.sprites = sprites;
     this.board = renderBoard();
+  }
+
+  /** Bildquelle einer Figur: Kampf-Sprites, wenn aktiv und vorhanden. */
+  srcFor(a: Actor): SpriteSource {
+    return a.hd && this.hd?.kinds.has(a.kind) ? this.hd : this.sprites;
+  }
+
+  /** Zeichenmaßstab einer Figur (Kampf-Sprites sind doppelt aufgelöst). */
+  scaleOf(a: Actor): number {
+    return a.hd && this.hd?.kinds.has(a.kind) ? 0.5 : 1;
   }
 
   actorAt(sq: Square): Actor | undefined {
@@ -165,14 +177,15 @@ export class Stage {
     const x = Math.round(p.x);
     const y = Math.round(p.y);
     if (!a.override) this.drawShadow(g, x, y, a.z, a.alpha);
-    const { f } = a.frame(this.sprites);
+    const { f } = a.frame(this.srcFor(a));
+    const sc = this.scaleOf(a) * a.scale;
     g.save();
     g.globalAlpha = a.alpha;
     // Laufen ohne eigene Bilder: kleines Hüpfen
     const bob = a.bob ? Math.round(Math.abs(Math.sin(a.bob * Math.PI)) * -2) : 0;
     g.translate(x, Math.round(y - a.z) + bob);
     if (a.rot) g.rotate(a.rot);
-    if (a.scale !== 1) g.scale(a.scale, a.scale);
+    if (sc !== 1) g.scale(sc, sc);
     g.drawImage(f.img, -f.ax, -f.ay);
     if (a.flash > 0) {
       g.globalAlpha = a.flash * a.alpha;

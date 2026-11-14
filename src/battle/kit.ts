@@ -60,7 +60,9 @@ export type Step =
   /** Opfer taumelt mit Sternchen über dem Kopf. */
   | { t: 'dizzy'; s: number }
   /** Helm fliegt dem Opfer vom Kopf. */
-  | { t: 'helmet' };
+  | { t: 'helmet' }
+  /** Arm oder Bein wird abgetrennt (nur mit Gelenkdaten, sonst übersprungen). */
+  | { t: 'sever'; part: 'arm' | 'leg' };
 
 export type HitSound = 'stab' | 'slash' | 'blunt' | 'magic' | 'arrow' | 'trample';
 export type Gag = 'wipe' | 'shrug' | 'bless' | 'kickHelmet' | 'bow' | 'cheer' | 'none';
@@ -172,13 +174,12 @@ export const CUSTOM: Partial<Record<string, Finisher>> = {
       { t: 'counter' },
       { t: 'parry' },
       { t: 'anim', who: 'a', anim: 'attack', lunge: 6 },
-      { t: 'helmet' },
-      { t: 'hit', blood: 6, shake: 2, sound: 'blunt' },
-      { t: 'dizzy', s: 0.35 },
+      { t: 'hit', blood: 10, shake: 4, sound: 'slash' },
+      { t: 'sever', part: 'arm' },
+      { t: 'dizzy', s: 0.5 },
       { t: 'lunge', px: 10, dur: 0.12 },
-      { t: 'hit', blood: 22, shake: 4, sound: 'stab' },
+      { t: 'hit', blood: 22, shake: 5, sound: 'stab' },
       { t: 'death', variant: death },
-      { t: 'gag', gag: 'kickHelmet' },
     ],
   },
   // Springer schlägt Bauer: Pferd steigt und trampelt
@@ -357,6 +358,9 @@ export function estimateDuration(plan: BattlePlan): number {
         break;
       case 'dizzy':
         s += st.s;
+        break;
+      case 'sever':
+        s += 0.8;
         break;
       default:
         break;

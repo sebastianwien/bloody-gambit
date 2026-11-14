@@ -6,6 +6,7 @@ import { ctx2d, makeCanvas, mirrorFrame, type AnimName, type Frame, type SpriteS
 type Rect = [number, number, number, number, number, number];
 interface AtlasJson {
   frames: Record<string, Rect>;
+  joints?: Record<string, Record<string, Record<string, [number, number]>>>;
 }
 
 const MIRROR: Partial<Record<Dir8, Dir8>> = { w: 'e', e: 'w', sw: 'se', se: 'sw', nw: 'ne', ne: 'nw' };
@@ -56,6 +57,7 @@ export class AtlasSprites implements SpriteSource {
   private base = new Map<string, Frame>();
   private cache = new Map<string, Frame[]>();
   readonly kinds = new Set<PieceSymbol>();
+  private joints: AtlasJson['joints'] = {};
 
   constructor(
     private fallback: SpriteSource,
@@ -77,7 +79,18 @@ export class AtlasSprites implements SpriteSource {
     }
   }
 
+  /** Gelenke einer Ansicht; Westseiten sind gespiegelte Ostseiten. */
+  jointsFor(kind: PieceSymbol, dir: Dir8): { joints: Record<string, [number, number]>; mirror: boolean } | null {
+    const k = this.joints?.[kind];
+    if (!k) return null;
+    if (k[dir]) return { joints: k[dir], mirror: false };
+    const m = MIRROR[dir];
+    if (m && k[m]) return { joints: k[m], mirror: true };
+    return null;
+  }
+
   private ingest(img: HTMLImageElement, json: AtlasJson) {
+    this.joints = json.joints ?? {};
     for (const [key, [x, y, w, h, ox, oy]] of Object.entries(json.frames)) {
       const c = makeCanvas(w, h);
       ctx2d(c).drawImage(img, x, y, w, h, 0, 0, w, h);
