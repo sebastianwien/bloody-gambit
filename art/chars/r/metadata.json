@@ -1,0 +1,36 @@
+{
+  "group_id": "ef876a57-b830-405b-8ec8-75097082b269",
+  "states": [
+    {
+      "character": {
+        "id": "d394bc8f-9c1e-4c8e-b3de-71b304042095",
+        "name": "Idle",
+        "prompt": "rook chess piece: a small round grey stone watchtower with crenellations and a dark red banner with a silver wolf head on its front, an archer in a steel helmet stands inside the top of the tower holding a wooden longbow. The tower is a solid building, the archer is the living part. Dark medieval pixel art, dark outline.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-14T12:06:34.042095+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-14T12:10:42.554271"
+}

@@ -6,6 +6,7 @@ import { boardToScreen, squareToBoard } from './iso.ts';
 import { PAL } from './palette.ts';
 import type { SpriteSource } from './sprites.ts';
 import { Tweens } from './tween.ts';
+import { Effects, type Prop } from './effects.ts';
 
 export interface Layer {
   update?(dt: number, stage: Stage): void;
@@ -35,6 +36,9 @@ export class Stage {
   /** Nach der Kamera, also fest auf dem Bildschirm (Regen, Blitz, Vignette). */
   screenLayers: Layer[] = [];
   camera = { x: VIEW_W / 2, y: VIEW_H / 2, zoom: 1, shake: 0 };
+  readonly effects = new Effects();
+  /** Abdunkeln der Umgebung während eines Kampfes (0..1). */
+  dim = 0;
   time = 0;
   private board: HTMLCanvasElement;
   private shakeX = 0;
@@ -82,6 +86,7 @@ export class Stage {
     } else {
       this.shakeX = this.shakeY = 0;
     }
+    this.effects.update(dt, this);
     for (const l of [...this.backLayers, ...this.floorLayers, ...this.frontLayers, ...this.screenLayers]) l.update?.(dt, this);
   }
 
@@ -108,14 +113,30 @@ export class Stage {
     g.drawImage(this.board, 0, 0);
     if (this.showLabels) drawBoardLabels(g, this.flipped);
     this.drawMarks(g);
+    this.effects.drawFloor(g, this);
     for (const l of this.floorLayers) l.draw(g, this);
-    const sorted = this.actors
-      .filter((a) => a.visible)
-      .sort((a, b) => a.screen(this.flipped).y - b.screen(this.flipped).y || a.id - b.id);
-    for (const a of sorted) this.drawActor(g, a);
+    if (this.dim > 0) {
+      // Umgebung abdunkeln, Figuren und Effekte bleiben hell
+      const tl = this.viewToWorld(0, 0);
+      g.globalAlpha = this.dim * 0.45;
+      g.fillStyle = PAL.night0;
+      g.fillRect(tl.x - 20, tl.y - 20, VIEW_W / c.zoom + 40, VIEW_H / c.zoom + 40);
+      g.globalAlpha = 1;
+    }
+    type Item = { y: number; id: number; a?: Actor; p?: Prop };
+    const items: Item[] = [];
+    for (const a of this.actors) if (a.visible) items.push({ y: a.screen(this.flipped).y, id: a.id, a });
+    this.effects.props.forEach((p, i) => items.push({ y: p.y, id: 100000 + i, p }));
+    items.sort((a, b) => a.y - b.y || a.id - b.id);
+    for (const it of items) {
+      if (it.a) this.drawActor(g, it.a);
+      else if (it.p) this.effects.drawProp(g, it.p);
+    }
+    this.effects.draw(g);
     for (const l of this.frontLayers) l.draw(g, this);
     g.setTransform(1, 0, 0, 1, 0, 0);
     for (const l of this.screenLayers) l.draw(g, this);
+    this.effects.drawScreen(g, VIEW_W, VIEW_H);
   }
 
   /** Schatten unter der Figur. */

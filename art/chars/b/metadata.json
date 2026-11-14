@@ -1,0 +1,36 @@
+{
+  "group_id": "70dfcb3f-1a12-4e00-95b1-42de0bfcd63f",
+  "states": [
+    {
+      "character": {
+        "id": "ab72ff47-5a22-4fe7-811d-624b07836412",
+        "name": "Idle",
+        "prompt": "bishop chess piece: hooded battle monk with dark skin in a long cream hooded robe over chainmail, holding a tall golden staff topped with a red gem in his right hand and a dark red shield with a silver wolf head emblem. Dark medieval pixel art, dark outline.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-14T12:04:54.168480+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-14T12:07:06.074698"
+}

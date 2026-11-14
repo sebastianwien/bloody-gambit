@@ -1,0 +1,36 @@
+{
+  "group_id": "3152dedb-fb6c-4928-926c-778af314c847",
+  "states": [
+    {
+      "character": {
+        "id": "feb38b3a-033d-42da-a4a3-28bf39cdfdde",
+        "name": "Idle",
+        "prompt": "pawn chess piece: foot soldier in steel kettle helmet and chainmail, cream cloak, holding a tall spear in his right hand and a dark red heater shield with a silver wolf head emblem, brown boots. Dark medieval pixel art, dark outline.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-14T11:55:27.852916+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-14T12:03:38.623550"
+}

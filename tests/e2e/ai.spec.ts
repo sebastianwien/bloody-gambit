@@ -49,7 +49,8 @@ test('komplette Partie gegen die KI bis zum Spielende', async ({ page }) => {
     if (!moved) {
       const dbg = await page.evaluate(() => {
         const g = (window as any).__wolf.game;
-        return { fen: g.rules.fen(), sel: g.selected, busy: g.busy, end: g.end, log: (window as any).__wolf.clickLog.slice(-4) };
+        const w = (window as any).__wolf;
+        return { fen: g.rules.fen(), sel: g.selected, busy: g.busy, end: g.end, log: w.clickLog.slice(-4), cam: w.stage.camera, actors: w.stage.actors.map((a: any) => a.sq + a.kind + (a.visible ? '' : '!') + (a.alpha < 1 ? '~' : '')).join(' ') };
       });
       throw new Error('Zug nicht angenommen: ' + uci + ' ' + JSON.stringify(dbg));
     }

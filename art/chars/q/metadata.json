@@ -1,0 +1,36 @@
+{
+  "group_id": "5e78ea09-913f-4229-8bd8-4acefd794599",
+  "states": [
+    {
+      "character": {
+        "id": "0819b5cb-4096-40c0-9c11-bc20f886fbc0",
+        "name": "Idle",
+        "prompt": "queen chess piece: armored woman warrior with a silver circlet, long dark hair, steel breastplate, long cream cloak with dark red lining, holding a tall halberd in her right hand and a dark red shield with a silver wolf head emblem. Dark medieval pixel art, dark outline.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-14T12:03:19.224035+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-14T12:05:11.073652"
+}
