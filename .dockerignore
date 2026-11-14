@@ -1,0 +1,11 @@
+node_modules
+dist
+art
+bilder
+public
+src
+tests
+test-results
+playwright-report
+.git
+.vitest

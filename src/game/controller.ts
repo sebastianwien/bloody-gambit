@@ -131,6 +131,21 @@ export class GameController {
     return true;
   }
 
+  /** Wartet, bis alle eingereihten Züge abgespielt sind. */
+  whenIdle(): Promise<void> {
+    return this.queue;
+  }
+
+  /** Setzt die Partie hart auf einen Zugverlauf (Online-Abgleich). */
+  resync(moves: string[]) {
+    this.aiToken++;
+    this.rules = Rules.fromMoves(moves);
+    this.selected = null;
+    this.syncActors();
+    this.refreshMarks();
+    this.events.turn?.(this.rules);
+  }
+
   /** Zug von außen (KI, Gegenseite, Wiederherstellung). Wird nacheinander abgespielt. */
   apply(m: MoveInput): Promise<void> {
     this.queue = this.queue.then(() => this.applyNow(m));

@@ -1,5 +1,5 @@
 import { GAME_TITLE } from './config.ts';
-import { App } from './app.ts';
+import { OnlineApp } from './online.ts';
 
 document.title = GAME_TITLE;
 
@@ -9,8 +9,8 @@ async function boot() {
   } catch {
     /* Schrift fehlt: Ersatzschrift */
   }
-  const app = new App(document.getElementById('root')!);
-  (window as unknown as { __wolf: App }).__wolf = app;
+  const app = new OnlineApp(document.getElementById('root')!);
+  (window as unknown as { __wolf: OnlineApp }).__wolf = app;
   await app.start();
 }
 

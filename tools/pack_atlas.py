@@ -33,10 +33,11 @@ def main():
         if rot_dir is None:
             continue
         south = Image.open(rot_dir / 'south.png').convert('RGBA')
+        size = south.height
         fy = max(foot_y(Image.open(p).convert('RGBA')) for p in rot_dir.glob('*.png'))
-        fy = min(fy, BASE) - 1
+        fy = min(fy, size) - 1
         for p in rot_dir.glob('*.png'):
-            entries.append((f'{kind}/rot/{DIRS[p.stem]}', Image.open(p).convert('RGBA'), BASE / 2, fy))
+            entries.append((f'{kind}/rot/{DIRS[p.stem]}', Image.open(p).convert('RGBA'), south.width / 2, fy))
         for anim_root in kdir.glob('*/animations/*'):
             anim = anim_root.name.lower().split('_')[0].split('-')[0]
             for d in anim_root.iterdir():
@@ -46,7 +47,7 @@ def main():
                     im = Image.open(fp).convert('RGBA')
                     # Größere Animationsleinwand ist mittig um die 64er-Leinwand gelegt
                     ax = im.width / 2
-                    ay = fy + (im.height - BASE) / 2
+                    ay = fy + (im.height - size) / 2
                     entries.append((f'{kind}/{anim}/{DIRS[d.name]}/{i}', im, ax, ay))
         _ = south
 

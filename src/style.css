@@ -190,3 +190,6 @@ input[type=text]:focus { box-shadow: inset 0 0 0 1px var(--fire2); }
 .move-no { color: var(--stone5); }
 .move.last { color: var(--fire3); }
 .hud-buttons { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 6px; }
+.room-code { font-size: 40px; line-height: 40px; color: var(--fire3); letter-spacing: 8px; text-shadow: 2px 2px 0 var(--ink); text-align: center; margin: 6px 0; }
+.room-link { color: var(--cream); word-break: break-all; line-height: 12px; }
+#ui .offer { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; }
