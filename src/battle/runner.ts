@@ -27,6 +27,8 @@ export type SfxName =
   | 'whoosh'
   | 'clank'
   | 'hoof'
+  | 'parry'
+  | 'sever'
   | 'stone'
   | 'grunt';
 
@@ -44,6 +46,12 @@ export class BattleRunner {
   hooks: BattleHooks = {};
   /** Zuletzt gespielter Plan (für Tests und Anzeige). */
   last: BattlePlan | null = null;
+  /** Laufender Kampf ist ein Fernkampf. */
+  private ranged = false;
+  /** Duellposition des laufenden Kampfes. */
+  private duel: { bx: number; by: number; side: number } | null = null;
+  /** Nächster Schritt des Plans (für Entscheidungen wie: überlebt das Opfer diesen Treffer?). */
+  private next: Step | null = null;
   /** Testhilfe: diese Todesart bevorzugen. */
   forceDeath: DeathVariant | null = null;
   /** Stumpf nach dem Abtrennen (für die Fontäne beim Verbluten). */
@@ -66,10 +74,14 @@ export class BattleRunner {
 
   async run(a: Actor, v: Actor, move: Move, seedExtra = 0) {
     this.stump = null;
+    this.ranged = false;
+    this.duel = null;
     let plan = planBattle(a.kind, v.kind, hashString(move.lan + ':' + seedExtra + ':' + move.before));
     // Testhilfe: bestimmte Todesart erzwingen (Bild-für-Bild-Prüfung)
     for (let k = 0; this.forceDeath && plan.death !== this.forceDeath && k < 300; k++) plan = planBattle(a.kind, v.kind, k);
     this.last = plan;
+    // Fernkampf (Pfeile): Abstand halten statt heranzutreten
+    this.ranged = plan.steps.some((x) => x.t === 'projectile' && x.kind === 'arrow');
     const st = this.stage;
     const target = squareToBoard(move.to);
     const tx = target.x + 0.5;
@@ -91,7 +103,8 @@ export class BattleRunner {
     });
     const useHd = !!st.hd?.kinds.has(a.kind) && !!st.hd?.kinds.has(v.kind);
     let fightCam = { x: camX, y: camY - 18, zoom };
-    for (const s of plan.steps) {
+    for (const [i, s] of plan.steps.entries()) {
+      this.next = plan.steps[i + 1] ?? null;
       this.hooks.step?.(s);
       await this.step(s, a, v, tx, ty);
       if (s.t === 'approach') {
@@ -156,6 +169,35 @@ export class BattleRunner {
     await this.walk(a, tx, ty);
   }
 
+  /** Duellposition des Angreifers (Brettkoordinaten) oder null, wenn es keine Seitenansicht-Kampfbilder gibt. */
+  private duelSpot(a: Actor, v: Actor): { bx: number; by: number; side: number } | null {
+    const st = this.stage;
+    const hasSide = st.sprites.frames(a.kind, a.side, 'attack', 'e').length > 1 || !!st.attackMeta(a);
+    if (!hasSide) return null;
+    const pa = this.pos(a);
+    const pv = this.pos(v);
+    // Abstand: Körper berühren sich höchstens, die Waffe dringt etwa 7 Pixel in den Gegner ein;
+    // Fernkämpfer halten gut ein Feld Abstand
+    const meta = st.attackMeta(a);
+    const bodies = st.bodyFront(a) + st.bodyFront(v) + 2;
+    const gap = this.ranged ? 100 : Math.max(bodies, meta ? meta.reach - 7 : 34);
+    const others = st.actors.filter((o) => o !== a && o !== v && o.visible);
+    const score = (side: number) => {
+      const x = pv.x + side * gap;
+      const b = screenToBoard(x, pv.y, st.flipped);
+      // Neben dem Brett ist verboten, Unbeteiligte im Weg sind schlecht, Umwege leicht schlecht
+      const off = b.x < 0.1 || b.x > 7.9 || b.y < 0.1 || b.y > 7.9 ? 100 : 0;
+      const crowd = others.reduce((n, o) => {
+        const p = this.pos(o);
+        return n + (Math.abs(p.x - x) < 26 && Math.abs(p.y - pv.y) < 16 ? 10 : 0);
+      }, 0);
+      const detour = Math.hypot(x - pa.x, pv.y - pa.y) / 100;
+      return { side, b, cost: off + crowd + detour };
+    };
+    const best = [score(1), score(-1)].sort((p, q) => p.cost - q.cost)[0];
+    return { bx: best.b.x, by: best.b.y, side: best.side };
+  }
+
   /** Laufen mit Laufbildern oder Schaukeln. */
   /** faceTo: Blick bleibt auf diese Figur gerichtet (seitwärts oder rückwärts gehen statt umdrehen). */
   private async walk(a: Actor, tx: number, ty: number, speed = 1, faceTo?: Actor) {
@@ -207,6 +249,16 @@ export class BattleRunner {
     const fx = st.effects;
     switch (s.t) {
       case 'approach': {
+        // Mit Seitenansicht-Kampfbildern direkt zur Duellposition, sonst bis auf stop Felder heran
+        const spot = this.duelSpot(a, v);
+        if (spot) {
+          this.duel = spot;
+          if (Math.hypot(spot.bx - a.bx, spot.by - a.by) > 0.08) {
+            if (a.kind === 'n') await this.hop(a, spot.bx, spot.by);
+            else await this.walk(a, spot.bx, spot.by);
+          }
+          break;
+        }
         const dx = tx - a.bx;
         const dy = ty - a.by;
         const d = Math.hypot(dx, dy);
@@ -220,24 +272,15 @@ export class BattleRunner {
       case 'face': {
         this.face(a, v);
         this.face(v, a);
-        // Mit Angriffsbildern (Seitenansicht) stellen sich beide seitlich auf
-        if (st.srcFor(a).frames(a.kind, a.side, 'attack', 'e').length > 1) {
-          // Duell-Aufstellung: Angreifer stellt sich auf gleiche Bildhöhe neben das Opfer,
-          // weil die Kampfbilder Seitenansichten sind
-          const pa = this.pos(a);
-          const pv = this.pos(v);
-          let side = Math.sign(pa.x - pv.x);
-          if (Math.abs(pa.x - pv.x) < 6) side = pv.x < 480 ? 1 : -1;
-          const gap = a.kind === 'n' || v.kind === 'n' ? 46 : 34;
-          const target = screenToBoard(pv.x + side * gap, pv.y, st.flipped);
-          // Beide schauen sich schon beim Aufstellen an
-          a.dir = side > 0 ? 'w' : 'e';
-          v.dir = side > 0 ? 'e' : 'w';
-          await this.walk(a, target.x, target.y, 1.6, v);
-          a.dir = side > 0 ? 'w' : 'e';
+        if (this.duel) {
+          // Duell: beide schauen sich in der Seitenansicht an
+          a.dir = this.duel.side > 0 ? 'w' : 'e';
+          v.dir = this.duel.side > 0 ? 'e' : 'w';
         }
-        v.play('idle', true);
-        await this.t.wait(0.18);
+        // Beide gehen in den Kampfstand
+        v.play(st.fightIdle(v), true);
+        a.play(st.fightIdle(a), true);
+        await this.t.wait(0.3);
         break;
       }
       case 'counter': {
@@ -246,6 +289,7 @@ export class BattleRunner {
         this.sfx('swing', v);
         const vf = st.srcFor(v).frames(v.kind, v.side, 'attack', v.dir);
         if (vf.length > 1) v.play('attack', false);
+        if (st.srcFor(a).frames(a.kind, a.side, 'parry', a.dir).length > 1) a.play('parry', false);
         await this.t.run(0.18, (k) => {
           v.ox = dir.x * 8 * Math.sin(k * Math.PI * 0.5);
           v.oy = dir.y * 8 * Math.sin(k * Math.PI * 0.5);
@@ -260,7 +304,7 @@ export class BattleRunner {
       }
       case 'parry': {
         const pa = this.pos(a);
-        this.sfx('slash', a);
+        this.sfx('parry', a);
         st.effects.sparks(pa.x + a.ox, pa.y, 26, 10);
         st.shake(2);
         await this.t.wait(0.2);
@@ -328,7 +372,7 @@ export class BattleRunner {
         const dir = this.toward(a, v);
         v.override = res.body;
         v.play('idle', true);
-        this.sfx('slash', v);
+        this.sfx('sever', v);
         this.sfx('scream', v);
         st.shake(4);
         st.effects.flash = 0.5;
@@ -384,8 +428,10 @@ export class BattleRunner {
           this.sfx('swing', who);
           who.play(s.anim, false);
           const dur = frames.length / ANIM_FPS;
-          // Treffer fällt in den hinteren Teil der Bewegung
-          await this.t.run(dur * 0.65, (k) => {
+          // Treffer genau im Bild, in dem die Waffe am weitesten vorn ist (sonst hinterer Teil der Bewegung)
+          const meta = s.anim === 'attack' ? st.attackMeta(who) : null;
+          const until = meta ? (meta.impact + 0.6) / ANIM_FPS : dur * 0.65;
+          await this.t.run(until, (k) => {
             if (s.lunge) {
               who.ox = dir.x * s.lunge * Math.sin(k * Math.PI * 0.5);
               who.oy = dir.y * s.lunge * Math.sin(k * Math.PI * 0.5);
@@ -424,6 +470,10 @@ export class BattleRunner {
         const dir = this.toward(a, v);
         this.sfx(s.sound, v);
         this.sfx('grunt', v);
+        const n = this.next;
+        const cutDeath = n?.t === 'sever' || (n?.t === 'death' && ['behead', 'split'].includes(n.variant));
+        if (!cutDeath && n?.t !== 'death' && st.srcFor(v).frames(v.kind, v.side, 'hurt', v.dir).length > 1) v.play('hurt', false);
+        else if (cutDeath) v.play('idle', true);
         st.shake(s.shake);
         fx.flash = Math.min(1, s.shake / 8);
         v.flash = 1;

@@ -1,0 +1,75 @@
+{
+  "group_id": "1e8f9a7b-4a16-4d8f-979c-987f42502be2",
+  "states": [
+    {
+      "character": {
+        "id": "718a63ca-fb3a-4471-9317-7990b2d240a5",
+        "name": "Idle",
+        "prompt": "queen chess piece: armored woman warrior with a silver circlet, long dark hair, steel breastplate, long cream cloak with dark red lining, holding a tall halberd in her right hand and a dark red shield with a silver wolf head emblem. Dark medieval pixel art, dark outline.",
+        "size": {
+          "width": 128,
+          "height": 128
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-14T13:55:01.464837+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "stance": {
+            "east": [
+              "Idle/animations/stance/east/frame_000.png",
+              "Idle/animations/stance/east/frame_001.png",
+              "Idle/animations/stance/east/frame_002.png",
+              "Idle/animations/stance/east/frame_003.png",
+              "Idle/animations/stance/east/frame_004.png",
+              "Idle/animations/stance/east/frame_005.png",
+              "Idle/animations/stance/east/frame_006.png",
+              "Idle/animations/stance/east/frame_007.png"
+            ]
+          },
+          "attack": {
+            "east": [
+              "Idle/animations/attack/east/frame_000.png",
+              "Idle/animations/attack/east/frame_001.png",
+              "Idle/animations/attack/east/frame_002.png",
+              "Idle/animations/attack/east/frame_003.png",
+              "Idle/animations/attack/east/frame_004.png",
+              "Idle/animations/attack/east/frame_005.png",
+              "Idle/animations/attack/east/frame_006.png",
+              "Idle/animations/attack/east/frame_007.png",
+              "Idle/animations/attack/east/frame_008.png",
+              "Idle/animations/attack/east/frame_009.png"
+            ]
+          },
+          "hurt": {
+            "east": [
+              "Idle/animations/hurt/east/frame_000.png",
+              "Idle/animations/hurt/east/frame_001.png",
+              "Idle/animations/hurt/east/frame_002.png",
+              "Idle/animations/hurt/east/frame_003.png",
+              "Idle/animations/hurt/east/frame_004.png",
+              "Idle/animations/hurt/east/frame_005.png",
+              "Idle/animations/hurt/east/frame_006.png",
+              "Idle/animations/hurt/east/frame_007.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-14T14:09:31.665752"
+}

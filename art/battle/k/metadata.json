@@ -1,0 +1,75 @@
+{
+  "group_id": "b678778c-ac6b-4566-b1ac-17265db9f394",
+  "states": [
+    {
+      "character": {
+        "id": "99e8f468-66a2-4ed9-a3eb-8e24706a3916",
+        "name": "Idle",
+        "prompt": "king chess piece: tall crowned knight in great helm with a golden crown, long cream cloak with dark red lining, steel plate armor, both hands resting on the hilt of a huge two-handed sword planted point down in front of him. Dark medieval pixel art, dark outline.",
+        "size": {
+          "width": 128,
+          "height": 128
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-14T13:56:57.338763+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "attack": {
+            "east": [
+              "Idle/animations/attack/east/frame_000.png",
+              "Idle/animations/attack/east/frame_001.png",
+              "Idle/animations/attack/east/frame_002.png",
+              "Idle/animations/attack/east/frame_003.png",
+              "Idle/animations/attack/east/frame_004.png",
+              "Idle/animations/attack/east/frame_005.png",
+              "Idle/animations/attack/east/frame_006.png",
+              "Idle/animations/attack/east/frame_007.png",
+              "Idle/animations/attack/east/frame_008.png",
+              "Idle/animations/attack/east/frame_009.png"
+            ]
+          },
+          "stance": {
+            "east": [
+              "Idle/animations/stance/east/frame_000.png",
+              "Idle/animations/stance/east/frame_001.png",
+              "Idle/animations/stance/east/frame_002.png",
+              "Idle/animations/stance/east/frame_003.png",
+              "Idle/animations/stance/east/frame_004.png",
+              "Idle/animations/stance/east/frame_005.png",
+              "Idle/animations/stance/east/frame_006.png",
+              "Idle/animations/stance/east/frame_007.png"
+            ]
+          },
+          "hurt": {
+            "east": [
+              "Idle/animations/hurt/east/frame_000.png",
+              "Idle/animations/hurt/east/frame_001.png",
+              "Idle/animations/hurt/east/frame_002.png",
+              "Idle/animations/hurt/east/frame_003.png",
+              "Idle/animations/hurt/east/frame_004.png",
+              "Idle/animations/hurt/east/frame_005.png",
+              "Idle/animations/hurt/east/frame_006.png",
+              "Idle/animations/hurt/east/frame_007.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-14T14:06:28.285521"
+}

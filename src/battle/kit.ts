@@ -36,7 +36,7 @@ export type Step =
   /** Beide drehen sich zueinander. */
   | { t: 'face' }
   /** Angreifer spielt eine Animation (oder Ausfallschritt im Code, wenn keine Bilder da sind). */
-  | { t: 'anim'; who: 'a' | 'v'; anim: 'attack' | 'hurt' | 'victory'; lunge?: number }
+  | { t: 'anim'; who: 'a' | 'v'; anim: 'attack' | 'hurt' | 'parry' | 'victory'; lunge?: number }
   /** Ausfallschritt Richtung Opfer und zurück (Pixel). */
   | { t: 'lunge'; px: number; dur: number }
   /** Treffer: Blitz, Wackeln, Blut. */
@@ -222,16 +222,16 @@ export const CUSTOM: Partial<Record<string, Finisher>> = {
       { t: 'gag', gag: 'bow' },
     ],
   },
-  // König schlägt Bauer: Königlicher Tritt
+  // König schlägt Bauer: ein einziger Hieb mit dem Zweihänder
   kp: {
-    id: 'koeniglicher-tritt',
-    deaths: ['launch', 'split'],
+    id: 'koenigshieb-bauer',
+    deaths: ['split', 'behead'],
     build: (death) => [
       { t: 'approach', stop: 0.7 },
       { t: 'face' },
       { t: 'wait', s: 0.3 },
-      { t: 'lunge', px: 9, dur: 0.12 },
-      { t: 'hit', blood: 14, shake: 6, sound: 'blunt' },
+      { t: 'anim', who: 'a', anim: 'attack', lunge: 4 },
+      { t: 'hit', blood: 26, shake: 8, sound: 'slash' },
       { t: 'death', variant: death },
       { t: 'gag', gag: 'wipe' },
     ],

@@ -1,0 +1,75 @@
+{
+  "group_id": "6cfcc49c-9f4f-46b6-83dc-f74045b63a2f",
+  "states": [
+    {
+      "character": {
+        "id": "64802832-7849-426f-a156-69926ef6932b",
+        "name": "Idle",
+        "prompt": "bishop chess piece: hooded battle monk with dark skin in a long cream hooded robe over chainmail, holding a tall golden staff topped with a red gem in his right hand and a dark red shield with a silver wolf head emblem. Dark medieval pixel art, dark outline.",
+        "size": {
+          "width": 128,
+          "height": 128
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-14T13:57:06.374888+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "hurt": {
+            "east": [
+              "Idle/animations/hurt/east/frame_000.png",
+              "Idle/animations/hurt/east/frame_001.png",
+              "Idle/animations/hurt/east/frame_002.png",
+              "Idle/animations/hurt/east/frame_003.png",
+              "Idle/animations/hurt/east/frame_004.png",
+              "Idle/animations/hurt/east/frame_005.png",
+              "Idle/animations/hurt/east/frame_006.png",
+              "Idle/animations/hurt/east/frame_007.png"
+            ]
+          },
+          "stance": {
+            "east": [
+              "Idle/animations/stance/east/frame_000.png",
+              "Idle/animations/stance/east/frame_001.png",
+              "Idle/animations/stance/east/frame_002.png",
+              "Idle/animations/stance/east/frame_003.png",
+              "Idle/animations/stance/east/frame_004.png",
+              "Idle/animations/stance/east/frame_005.png",
+              "Idle/animations/stance/east/frame_006.png",
+              "Idle/animations/stance/east/frame_007.png"
+            ]
+          },
+          "attack": {
+            "east": [
+              "Idle/animations/attack/east/frame_000.png",
+              "Idle/animations/attack/east/frame_001.png",
+              "Idle/animations/attack/east/frame_002.png",
+              "Idle/animations/attack/east/frame_003.png",
+              "Idle/animations/attack/east/frame_004.png",
+              "Idle/animations/attack/east/frame_005.png",
+              "Idle/animations/attack/east/frame_006.png",
+              "Idle/animations/attack/east/frame_007.png",
+              "Idle/animations/attack/east/frame_008.png",
+              "Idle/animations/attack/east/frame_009.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-14T14:09:32.697413"
+}

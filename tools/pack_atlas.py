@@ -49,9 +49,46 @@ def snap(im, pal):
     return Image.fromarray(a.astype(np.uint8))
 
 
+def drop_specks(im, keep_ratio=0.12):
+    """Entfernt lose Flecken (Rauch, Schlieren der Bildmodelle): nur Teile behalten, die groß sind
+    oder nah am Hauptkörper liegen. Waffen hängen am Körper und bleiben."""
+    a = np.array(im)
+    alpha = a[..., 3] > 0
+    h, w = alpha.shape
+    labels = np.zeros((h, w), np.int32)
+    sizes = [0]
+    cur = 0
+    for y in range(h):
+        for x in range(w):
+            if not alpha[y, x] or labels[y, x]:
+                continue
+            cur += 1
+            stack = [(y, x)]
+            labels[y, x] = cur
+            n = 0
+            while stack:
+                cy, cx = stack.pop()
+                n += 1
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        ny, nx = cy + dy, cx + dx
+                        if 0 <= ny < h and 0 <= nx < w and alpha[ny, nx] and not labels[ny, nx]:
+                            labels[ny, nx] = cur
+                            stack.append((ny, nx))
+            sizes.append(n)
+    if cur <= 1:
+        return im
+    biggest = max(sizes)
+    keep = {i for i, n in enumerate(sizes) if i and n >= biggest * keep_ratio}
+    mask = np.isin(labels, list(keep))
+    a[~mask, 3] = 0
+    return Image.fromarray(a)
+
+
 def main():
     entries = []  # (key, image, anchor_x, anchor_y)
     joints = {}
+    meta = {}  # "<kind>/<anim>/<dir>": {impact, reach}
     for kdir in sorted(CHARS.iterdir()):
         if not kdir.is_dir():
             continue
@@ -75,6 +112,11 @@ def main():
             }
         for stem, im in rots.items():
             entries.append((f'{kind}/rot/{DIRS[stem]}', im, south.width / 2, feet[stem]))
+        # Körperausdehnung in der Seitenansicht (für Abstände ohne Überlappung)
+        if 'east' in rots:
+            bb = rots['east'].getbbox()
+            if bb:
+                meta[f'{kind}/rot/e'] = {'impact': 0, 'reach': round(bb[2] - south.width / 2, 1), 'back': round(south.width / 2 - bb[0], 1)}
         # Verworfene Animationen: art/chars/<kind>/SKIP, Zeilen "ordnername/richtung"
         skip_file = kdir / 'SKIP'
         skip = set(skip_file.read_text().split()) if skip_file.exists() else set()
@@ -94,12 +136,21 @@ def main():
                 if d.name not in DIRS or f'{anim_root.name}/{d.name}' in skip:
                     continue
                 target, drop = remap.get(f'{anim_root.name}/{d.name}', (d.name, 0))
+                best = (-1, -1)
                 for i, fp in enumerate(sorted(d.glob('frame_*.png'))[drop:]):
-                    im = snap(Image.open(fp).convert('RGBA'), pal)
+                    im = snap(drop_specks(Image.open(fp).convert('RGBA')), pal)
                     # Größere Animationsleinwand ist mittig um die Ruhe-Leinwand gelegt
                     ax = im.width / 2
                     ay = feet[d.name] + (im.height - size) / 2
                     entries.append((f'{kind}/{anim}/{DIRS[target]}/{i}', im, ax, ay))
+                    # Reichweite: wie weit ragt das Bild in Blickrichtung über den Fußpunkt hinaus
+                    bb = im.getbbox()
+                    if bb:
+                        reach = (bb[2] - ax) if DIRS[target] in ('e', 'se', 'ne') else (ax - bb[0])
+                        if reach > best[1]:
+                            best = (i, reach)
+                if best[0] >= 0:
+                    meta[f'{kind}/{anim}/{DIRS[target]}'] = {'impact': best[0], 'reach': round(best[1], 1)}
         _ = south
 
     # Zuschneiden auf sichtbaren Bereich
@@ -130,7 +181,7 @@ def main():
         frames[key] = [px, py, c.width, c.height, ox, oy]
     OUT.mkdir(parents=True, exist_ok=True)
     atlas.save(OUT / f'{OUTNAME}.png', optimize=True)
-    (OUT / f'{OUTNAME}.json').write_text(json.dumps({'frames': frames, 'joints': joints}, separators=(',', ':')))
+    (OUT / f'{OUTNAME}.json').write_text(json.dumps({'frames': frames, 'joints': joints, 'meta': meta}, separators=(',', ':')))
     print(f'Atlas {width}x{height}, {len(frames)} Bilder')
 
 

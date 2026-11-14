@@ -38,7 +38,27 @@ export class Stage {
   camera = { x: VIEW_W / 2, y: VIEW_H / 2, zoom: 1, shake: 0 };
   readonly effects = new Effects();
   /** Kampf-Sprites in doppelter Auflösung (nur für Figuren, die es dort gibt). */
-  hd: (SpriteSource & { kinds: Set<string>; jointsFor?(kind: string, dir: string): { joints: Record<string, [number, number]>; mirror: boolean } | null }) | null = null;
+  hd: (SpriteSource & {
+    kinds: Set<string>;
+    jointsFor?(kind: string, dir: string): { joints: Record<string, [number, number]>; mirror: boolean } | null;
+    animMeta?(kind: string, anim: string): { impact: number; reach: number } | null;
+  }) | null = null;
+
+  /** Vordere Körperausdehnung in Blickrichtung (Weltpixel): wie weit ragt die Figur in Ruhe nach vorn. */
+  bodyFront(a: Actor): number {
+    const m = this.hd?.kinds.has(a.kind) ? this.hd.animMeta?.(a.kind, 'rot') : null;
+    if (m) return m.reach * (a.hd ? 0.5 : 0.5);
+    // Ohne Kampf-Sprites: halbe Bildbreite der Ruhe-Ansicht als Schätzung
+    const f = this.sprites.still(a.kind, a.side, 'e');
+    return (f.w - f.ax) * 0.9;
+  }
+
+  /** Trefferbild und Reichweite in Weltpixeln, wenn die Figur Kampf-Sprites hat. */
+  attackMeta(a: Actor): { impact: number; reach: number } | null {
+    if (!this.hd?.kinds.has(a.kind)) return null;
+    const m = this.hd.animMeta?.(a.kind, 'attack');
+    return m ? { impact: m.impact, reach: m.reach * 0.5 } : null;
+  }
   /** Abdunkeln der Umgebung während eines Kampfes (0..1). */
   dim = 0;
   time = 0;
@@ -58,6 +78,11 @@ export class Stage {
   /** Bildquelle einer Figur: Kampf-Sprites, wenn aktiv und vorhanden. */
   srcFor(a: Actor): SpriteSource {
     return a.hd && this.hd?.kinds.has(a.kind) ? this.hd : this.sprites;
+  }
+
+  /** Haltung zwischen Aktionen: im Kampf der gezeichnete Kampfstand, sonst Ruhe. */
+  fightIdle(a: Actor): 'stance' | 'idle' {
+    return a.hd && this.srcFor(a).frames(a.kind, a.side, 'stance', a.dir).length > 1 ? 'stance' : 'idle';
   }
 
   /** Zeichenmaßstab einer Figur (Kampf-Sprites sind doppelt aufgelöst). */
@@ -98,9 +123,9 @@ export class Stage {
         }
       } else if (a.anim === 'quirk' && a.animT * a.fps >= this.sprites.frames(a.kind, a.side, 'quirk', a.dir).length) {
         a.play('idle', true);
-      } else if (a.anim === 'attack' && !a.loop && a.animT * a.fps >= this.srcFor(a).frames(a.kind, a.side, 'attack', a.dir).length + 1) {
-        // Nach dem Angriff kurz im Endbild, dann zurück in die Grundhaltung
-        a.play('idle', true);
+      } else if ((a.anim === 'attack' || a.anim === 'hurt' || a.anim === 'parry') && !a.loop && a.animT * a.fps >= this.srcFor(a).frames(a.kind, a.side, a.anim, a.dir).length + 1) {
+        // Nach dem Angriff kurz im Endbild, dann zurück in den Kampfstand (oder die Ruhepose)
+        a.play(this.fightIdle(a), true);
       }
     }
     if (this.camera.shake > 0) {

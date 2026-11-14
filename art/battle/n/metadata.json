@@ -1,0 +1,63 @@
+{
+  "group_id": "8e18cfd6-acb6-438b-8f67-4b35a75b5a3c",
+  "states": [
+    {
+      "character": {
+        "id": "551db422-0f3c-45d4-ab1a-f16fc4a17715",
+        "name": "Idle",
+        "prompt": "knight chess piece: armored knight in a great helm and cream surcoat riding a grey armored warhorse with steel barding, carrying a dark red shield with a silver wolf head emblem. The horse has four legs and a clearly visible horse head. Dark medieval pixel art, dark outline.",
+        "size": {
+          "width": 128,
+          "height": 128
+        },
+        "template_id": "horse",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-14T13:57:06.977691+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "hurt": {
+            "east": [
+              "Idle/animations/hurt/east/frame_000.png",
+              "Idle/animations/hurt/east/frame_001.png",
+              "Idle/animations/hurt/east/frame_002.png",
+              "Idle/animations/hurt/east/frame_003.png",
+              "Idle/animations/hurt/east/frame_004.png",
+              "Idle/animations/hurt/east/frame_005.png",
+              "Idle/animations/hurt/east/frame_006.png",
+              "Idle/animations/hurt/east/frame_007.png"
+            ]
+          },
+          "attack": {
+            "east": [
+              "Idle/animations/attack/east/frame_000.png",
+              "Idle/animations/attack/east/frame_001.png",
+              "Idle/animations/attack/east/frame_002.png",
+              "Idle/animations/attack/east/frame_003.png",
+              "Idle/animations/attack/east/frame_004.png",
+              "Idle/animations/attack/east/frame_005.png",
+              "Idle/animations/attack/east/frame_006.png",
+              "Idle/animations/attack/east/frame_007.png",
+              "Idle/animations/attack/east/frame_008.png",
+              "Idle/animations/attack/east/frame_009.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-14T14:06:29.265527"
+}

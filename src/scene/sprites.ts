@@ -19,6 +19,8 @@ export type AnimName =
   | 'walk'
   | 'attack'
   | 'hurt'
+  | 'parry'
+  | 'stance'
   | 'victory'
   | 'defeat';
 

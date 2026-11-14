@@ -28,6 +28,18 @@
           "south-west": "Idle/rotations/south-west.png"
         },
         "animations": {
+          "hurt": {
+            "east": [
+              "Idle/animations/hurt/east/frame_000.png",
+              "Idle/animations/hurt/east/frame_001.png",
+              "Idle/animations/hurt/east/frame_002.png",
+              "Idle/animations/hurt/east/frame_003.png",
+              "Idle/animations/hurt/east/frame_004.png",
+              "Idle/animations/hurt/east/frame_005.png",
+              "Idle/animations/hurt/east/frame_006.png",
+              "Idle/animations/hurt/east/frame_007.png"
+            ]
+          },
           "attack": {
             "east": [
               "Idle/animations/attack/east/frame_000.png",
@@ -39,11 +51,35 @@
               "Idle/animations/attack/east/frame_006.png",
               "Idle/animations/attack/east/frame_007.png"
             ]
+          },
+          "stance": {
+            "east": [
+              "Idle/animations/stance/east/frame_000.png",
+              "Idle/animations/stance/east/frame_001.png",
+              "Idle/animations/stance/east/frame_002.png",
+              "Idle/animations/stance/east/frame_003.png",
+              "Idle/animations/stance/east/frame_004.png",
+              "Idle/animations/stance/east/frame_005.png",
+              "Idle/animations/stance/east/frame_006.png",
+              "Idle/animations/stance/east/frame_007.png"
+            ]
+          },
+          "parry": {
+            "east": [
+              "Idle/animations/parry/east/frame_000.png",
+              "Idle/animations/parry/east/frame_001.png",
+              "Idle/animations/parry/east/frame_002.png",
+              "Idle/animations/parry/east/frame_003.png",
+              "Idle/animations/parry/east/frame_004.png",
+              "Idle/animations/parry/east/frame_005.png",
+              "Idle/animations/parry/east/frame_006.png",
+              "Idle/animations/parry/east/frame_007.png"
+            ]
           }
         }
       }
     }
   ],
   "export_version": "3.1",
-  "export_date": "2026-11-14T13:15:58.809075"
+  "export_date": "2026-11-14T14:06:26.234902"
 }
