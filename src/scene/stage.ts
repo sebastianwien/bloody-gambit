@@ -98,6 +98,9 @@ export class Stage {
         }
       } else if (a.anim === 'quirk' && a.animT * a.fps >= this.sprites.frames(a.kind, a.side, 'quirk', a.dir).length) {
         a.play('idle', true);
+      } else if (a.anim === 'attack' && !a.loop && a.animT * a.fps >= this.srcFor(a).frames(a.kind, a.side, 'attack', a.dir).length + 1) {
+        // Nach dem Angriff kurz im Endbild, dann zurück in die Grundhaltung
+        a.play('idle', true);
       }
     }
     if (this.camera.shake > 0) {

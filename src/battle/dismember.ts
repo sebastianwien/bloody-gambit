@@ -135,28 +135,25 @@ export function sever(f: Frame, joints: Joints, part: 'arm' | 'leg', mirror: boo
     bd.data[i * 4 + 3] = 0;
     wn++;
   }
-  // Lücke hinter dem Schaft mit der Farbe des nächsten Körperpixels links oder rechts füllen
-  for (let i = 0; i < w * h; i++) {
-    if (!weapon[i]) continue;
-    const x = i % w;
-    for (let k = 1; k < 6; k++) {
-      for (const nx of [x - k, x + k]) {
-        if (nx < 0 || nx >= w) continue;
-        const ni = i - x + nx;
-        if (weapon[ni] || d[ni * 4 + 3] < 20) continue;
-        // nur füllen, wenn auf beiden Seiten Körper ist (sonst ist das Freiraum)
-        const ox = 2 * x - nx;
-        if (ox < 0 || ox >= w) continue;
-        let other = false;
-        for (let m = 1; m < 6 && !other; m++) {
-          const oi = i - x + (nx < x ? x + m : x - m);
-          if (oi >= 0 && !weapon[oi] && d[oi * 4 + 3] >= 20) other = true;
-        }
-        if (!other) continue;
-        for (let c = 0; c < 4; c++) bd.data[i * 4 + c] = d[ni * 4 + c];
-        k = 99;
-        break;
+  // Löcher im Rumpf (dort lagen Arm oder Schaft vor dem Körper) mit den nächsten Körperfarben füllen,
+  // aber nur, wo links und rechts noch Körper ist; außerhalb des Umrisses bleibt es durchsichtig
+  const removed = (i: number) => mask[i] === 1 || weapon[i] === 1;
+  const reach = Math.round(14 * scale);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (!removed(i)) continue;
+      let left = -1;
+      let right = -1;
+      for (let k = 1; k <= reach && (left < 0 || right < 0); k++) {
+        const lx = x - k;
+        const rx = x + k;
+        if (left < 0 && lx >= 0 && d[(i - k) * 4 + 3] >= 20 && !removed(i - k)) left = i - k;
+        if (right < 0 && rx < w && d[(i + k) * 4 + 3] >= 20 && !removed(i + k)) right = i + k;
       }
+      if (left < 0 || right < 0) continue;
+      const src = x - (left % w) <= (right % w) - x ? left : right;
+      for (let c = 0; c < 4; c++) bd.data[i * 4 + c] = d[src * 4 + c];
     }
   }
   let cx = 0;

@@ -18,7 +18,8 @@ export type DeathVariant =
   | 'burn' // verkohlt und zerfällt zu Asche
   | 'pincushion' // mit Pfeilen gespickt, sinkt zusammen
   | 'crumble' // Turm: stürzt ein
-  | 'launch'; // fliegt im hohen Bogen davon (nur eigene Finisher)
+  | 'launch' // fliegt im hohen Bogen davon (nur eigene Finisher)
+  | 'bleedout'; // nach abgetrenntem Glied: taumeln, auf die Knie, umkippen
 
 /** Welche Tode jedes Opfer sterben kann (2 bis 3). */
 export const DEATHS: Record<Victim, DeathVariant[]> = {
@@ -155,7 +156,7 @@ const GENERIC: Record<PieceSymbol, Finisher> = {
       { t: 'face' },
       { t: 'wait', s: 0.25 },
       { t: 'anim', who: 'a', anim: 'attack', lunge: 5 },
-      { t: 'hit', blood: 30, shake: 8, sound: 'slash' },
+      { t: 'hit', blood: 30, shake: 8, sound: death === 'squash' ? 'blunt' : 'slash' },
       { t: 'death', variant: death },
       { t: 'gag', gag: 'wipe' },
     ],
@@ -167,18 +168,15 @@ export const CUSTOM: Partial<Record<string, Finisher>> = {
   // Bauer schlägt Bauer: Stochern, Gegenstoß prallt ab, Helm fliegt, dann der Stich
   pp: {
     id: 'stocherduell',
-    deaths: ['fall', 'behead'],
+    deaths: ['bleedout', 'behead'],
     build: (death) => [
       { t: 'approach', stop: 0.8 },
       { t: 'face' },
       { t: 'counter' },
       { t: 'parry' },
       { t: 'anim', who: 'a', anim: 'attack', lunge: 6 },
-      { t: 'hit', blood: 10, shake: 4, sound: 'slash' },
-      { t: 'sever', part: 'arm' },
-      { t: 'dizzy', s: 0.5 },
-      { t: 'lunge', px: 10, dur: 0.12 },
-      { t: 'hit', blood: 22, shake: 5, sound: 'stab' },
+      { t: 'hit', blood: 16, shake: 5, sound: 'slash' },
+      ...(death === 'bleedout' ? [{ t: 'sever', part: 'arm' } as Step] : []),
       { t: 'death', variant: death },
     ],
   },
@@ -300,10 +298,13 @@ export function planBattle(attacker: PieceSymbol, victim: PieceSymbol, seed: num
   const v = victim as Victim;
   const rnd = mulberry32(seed);
   const f = CUSTOM[attacker + v] ?? GENERIC[attacker];
-  // Eigene Finisher dürfen eigene Tode haben (launch), allgemeine nehmen die Tode des Opfers
+  // Eigene Finisher dürfen eigene Tode haben (launch, bleedout), allgemeine nehmen die Tode des Opfers.
+  // In jedem Fall nur Tode, deren Ablauf die Dramaturgie-Regeln erfüllt (z. B. Kopf ab nur mit Klinge).
   let pool = CUSTOM[attacker + v] ? f.deaths.filter((d) => d !== 'crumble' || v === 'r') : f.deaths.filter((d) => DEATHS[v].includes(d));
   if (!pool.length) pool = DEATHS[v];
-  const death = pool[Math.floor(rnd() * pool.length)];
+  const valid = pool.filter((d) => validatePlan({ attacker, victim: v, finisher: f.id, death: d, steps: f.build(d) }).length === 0);
+  const choices = valid.length ? valid : ['fall' as DeathVariant];
+  const death = choices[Math.floor(rnd() * choices.length)];
   return { attacker, victim: v, finisher: f.id, death, steps: f.build(death) };
 }
 
@@ -360,11 +361,60 @@ export function estimateDuration(plan: BattlePlan): number {
         s += st.s;
         break;
       case 'sever':
-        s += 0.8;
+        s += 0.6;
         break;
       default:
         break;
     }
   }
   return s + 0.9;
+}
+
+/** Welche Todesart zu welchem entscheidenden Treffer passt. */
+const DEATH_NEEDS: Record<DeathVariant, HitSound[] | 'any'> = {
+  fall: 'any',
+  gib: ['stab', 'slash', 'blunt', 'magic', 'trample'],
+  behead: ['slash'],
+  split: ['slash'],
+  squash: ['blunt', 'trample'],
+  burn: ['magic'],
+  pincushion: ['arrow'],
+  crumble: 'any',
+  launch: ['blunt', 'trample'],
+  bleedout: ['slash', 'stab'],
+};
+
+const STRIKES = new Set<Step['t']>(['lunge', 'hit', 'projectile', 'leap', 'rear']);
+
+/**
+ * Dramaturgie-Regeln, damit jeder Kampf Sinn ergibt (gilt für alle Paarungen, getestet):
+ * 1. Genau ein Tod, danach höchstens eine Geste.
+ * 2. Mindestens ein Treffer vor dem Tod; der letzte Treffer entscheidet.
+ * 3. Nach einer schweren Wunde (abgetrenntes Glied) schlägt niemand mehr zu, das Opfer verblutet.
+ * 4. Das Opfer wehrt sich nur, solange es noch nicht getroffen wurde.
+ * 5. Die Todesart passt zur Waffe des entscheidenden Treffers.
+ */
+export function validatePlan(plan: BattlePlan): string[] {
+  const errs: string[] = [];
+  const st = plan.steps;
+  const di = st.findIndex((x) => x.t === 'death');
+  if (di < 0 || st.filter((x) => x.t === 'death').length !== 1) errs.push('genau ein Tod');
+  if (st.slice(di + 1).some((x) => x.t !== 'gag')) errs.push('nach dem Tod nur eine Geste');
+  const before = st.slice(0, di);
+  let decisive: HitSound | null = null;
+  for (const x of before) {
+    if (x.t === 'hit') decisive = x.sound;
+    if (x.t === 'projectile') decisive = x.kind === 'arrow' ? 'arrow' : x.kind === 'bolt' ? 'magic' : 'stab';
+  }
+  if (!decisive) errs.push('kein Treffer vor dem Tod');
+  const si = before.findIndex((x) => x.t === 'sever');
+  if (si >= 0) {
+    if (before.slice(si + 1).some((x) => STRIKES.has(x.t) || (x.t === 'anim' && x.who === 'a'))) errs.push('Schlag nach schwerer Wunde');
+    if (plan.death !== 'bleedout') errs.push('nach abgetrenntem Glied muss das Opfer verbluten');
+  } else if (plan.death === 'bleedout') errs.push('verbluten ohne Wunde');
+  const firstHit = before.findIndex((x) => x.t === 'hit' || x.t === 'projectile');
+  if (firstHit >= 0 && before.slice(firstHit).some((x) => x.t === 'counter' || (x.t === 'anim' && x.who === 'v'))) errs.push('Opfer greift nach Treffer an');
+  const need = DEATH_NEEDS[plan.death];
+  if (decisive && need !== 'any' && !need.includes(decisive)) errs.push(`${plan.death} passt nicht zu ${decisive}`);
+  return errs;
 }

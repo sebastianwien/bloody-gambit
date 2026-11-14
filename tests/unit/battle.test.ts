@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allPairings, CUSTOM, DEATHS, estimateDuration, planBattle, shouldShowBattle } from '../../src/battle/kit.ts';
+import { allPairings, CUSTOM, DEATHS, estimateDuration, planBattle, shouldShowBattle, validatePlan } from '../../src/battle/kit.ts';
 
 describe('Kampf-Baukasten', () => {
   it('30 Paarungen, König nie Opfer', () => {
@@ -32,6 +32,31 @@ describe('Kampf-Baukasten', () => {
       for (const a of ['p', 'n', 'b', 'r', 'q', 'k'] as const) for (let s = 0; s < 50; s++) seen.add(planBattle(a, v as 'p', s).death);
       for (const d of list) expect(seen, v + ' ' + d).toContain(d);
     }
+  });
+
+  it('jeder Kampf erfüllt die Dramaturgie-Regeln (alle 30 Paarungen, viele Seeds)', () => {
+    for (const [a, v] of allPairings()) {
+      for (let seed = 0; seed < 40; seed++) {
+        const plan = planBattle(a, v, seed);
+        expect(validatePlan(plan), `${a}${v} ${plan.finisher} ${plan.death}`).toEqual([]);
+      }
+    }
+  });
+
+  it('Regeln greifen: Schlag nach abgetrenntem Arm wird erkannt', () => {
+    const bad = {
+      attacker: 'p' as const, victim: 'p' as const, finisher: 'x', death: 'behead' as const,
+      steps: [
+        { t: 'approach' as const, stop: 1 },
+        { t: 'hit' as const, blood: 1, shake: 1, sound: 'slash' as const },
+        { t: 'sever' as const, part: 'arm' as const },
+        { t: 'hit' as const, blood: 1, shake: 1, sound: 'stab' as const },
+        { t: 'death' as const, variant: 'behead' as const },
+      ],
+    };
+    const errs = validatePlan(bad);
+    expect(errs).toContain('Schlag nach schwerer Wunde');
+    expect(errs).toContain('behead passt nicht zu stab');
   });
 
   it('die häufigsten Paarungen haben eigene Finisher', () => {

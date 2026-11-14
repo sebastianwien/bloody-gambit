@@ -123,6 +123,53 @@ function voice(ctx: AudioContext, out: AudioNode, t: number, o: { f: number; f2:
   noiseHit(ctx, out, t, { type: 'bandpass', f: o.formants[0] * 1.5, q: 2, peak: o.peak * 0.15, a: 0.02, h: o.dur * 0.3, d: o.dur * 0.5 });
 }
 
+let shaperCurve: Float32Array | null = null;
+/** Sättigung für dreckige, schwere Treffer. */
+function drive(ctx: AudioContext, amount = 3): WaveShaperNode {
+  const ws = ctx.createWaveShaper();
+  if (!shaperCurve) {
+    shaperCurve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) {
+      const x = (i / 1023) * 2 - 1;
+      shaperCurve[i] = Math.tanh(x * amount);
+    }
+  }
+  ws.curve = shaperCurve as Float32Array<ArrayBuffer>;
+  return ws;
+}
+
+/** Körpertreffer: tiefer Schlag mit Tonhöhenabfall, verzerrt, plus dumpfes Rauschen. */
+function thud(ctx: AudioContext, out: AudioNode, t: number, f0: number, peak: number, dur = 0.22) {
+  const ws = drive(ctx, 4);
+  ws.connect(out);
+  const osc = ctx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(f0, t);
+  osc.frequency.exponentialRampToValueAtTime(f0 * 0.32, t + dur);
+  const g = env(ctx, t, peak, 0.002, 0.01, dur);
+  osc.connect(g).connect(ws);
+  osc.start(t);
+  osc.stop(t + dur + 0.05);
+  noiseHit(ctx, ws, t, { type: 'lowpass', f: 420, f2: 120, peak: peak * 0.9, d: dur * 0.8 });
+}
+
+/** Nasses Fleisch: Rauschen durch wandernden Bandpass, mehrere kleine Stöße. */
+function flesh(ctx: AudioContext, out: AudioNode, t: number, peak: number, len = 0.16) {
+  for (let i = 0; i < 3; i++) {
+    noiseHit(ctx, out, t + i * len * 0.28 + r(0, 0.01), { type: 'bandpass', f: r(900, 1300), f2: r(180, 260), q: 1.8, peak: peak * (1 - i * 0.25), d: len * (1 - i * 0.2) });
+  }
+}
+
+/** Knochen knackt: kurze, scharfe Klicks. */
+function crack(ctx: AudioContext, out: AudioNode, t: number, peak: number, n = 4) {
+  for (let i = 0; i < n; i++) noiseHit(ctx, out, t + i * r(0.008, 0.02), { type: 'bandpass', f: r(1800, 3800), q: 3, peak, d: 0.012 });
+}
+
+/** Kettenhemd raschelt (statt Glockentöne). */
+function mail(ctx: AudioContext, out: AudioNode, t: number, peak: number, n = 5) {
+  for (let i = 0; i < n; i++) noiseHit(ctx, out, t + i * r(0.01, 0.03), { type: 'highpass', f: r(5000, 7000), peak: peak * r(0.5, 1), d: r(0.01, 0.03) });
+}
+
 const r = (a: number, b: number) => a + Math.random() * (b - a);
 
 export const SFX: Record<string, SfxFn> = {
@@ -133,10 +180,12 @@ export const SFX: Record<string, SfxFn> = {
     metal(c, o, t, 1800, 0.03 * v, 0.2);
   },
   deny: (c, o, t, v) => tone(c, o, t, { type: 'square', f: 180, f2: 120, peak: 0.08 * v, d: 0.12, lp: 900 }),
-  step: (c, o, t, v) => noiseHit(c, o, t, { type: 'lowpass', f: 380, peak: 0.25 * v, d: 0.07 }),
+  step: (c, o, t, v) => {
+    noiseHit(c, o, t, { type: 'lowpass', f: 300, peak: 0.25 * v, d: 0.07 });
+  },
   clank: (c, o, t, v) => {
-    noiseHit(c, o, t, { type: 'lowpass', f: 420, peak: 0.22 * v, d: 0.06 });
-    metal(c, o, t + 0.005, r(1500, 1900), 0.025 * v, 0.12);
+    noiseHit(c, o, t, { type: 'lowpass', f: 320, peak: 0.28 * v, d: 0.08 });
+    mail(c, o, t + 0.01, 0.05 * v, 3);
   },
   hoof: (c, o, t, v) => {
     for (const dt of [0, 0.07]) {
@@ -148,18 +197,21 @@ export const SFX: Record<string, SfxFn> = {
   swing: (c, o, t, v) => noiseHit(c, o, t, { type: 'bandpass', f: 3500, f2: 500, q: 1.5, peak: 0.25 * v, a: 0.05, d: 0.18 }),
   whoosh: (c, o, t, v) => noiseHit(c, o, t, { type: 'bandpass', f: 1200, f2: 300, q: 1, peak: 0.25 * v, a: 0.08, d: 0.25 }),
   stab: (c, o, t, v) => {
-    noiseHit(c, o, t, { type: 'highpass', f: 2500, peak: 0.25 * v, d: 0.06 });
-    tone(c, o, t, { type: 'sine', f: 160, f2: 60, peak: 0.45 * v, d: 0.14 });
-    noiseHit(c, o, t + 0.02, { type: 'lowpass', f: 700, peak: 0.3 * v, d: 0.12 });
+    noiseHit(c, o, t, { type: 'bandpass', f: 2200, f2: 700, q: 1.2, peak: 0.12 * v, a: 0.02, d: 0.06 });
+    thud(c, o, t + 0.03, 140, 0.55 * v, 0.18);
+    flesh(c, o, t + 0.03, 0.5 * v, 0.14);
+    crack(c, o, t + 0.05, 0.12 * v, 2);
   },
   slash: (c, o, t, v) => {
-    noiseHit(c, o, t, { type: 'bandpass', f: 5000, f2: 900, q: 2, peak: 0.3 * v, d: 0.15 });
-    metal(c, o, t, r(900, 1200), 0.06 * v, 0.6);
-    tone(c, o, t + 0.03, { type: 'sine', f: 120, f2: 50, peak: 0.4 * v, d: 0.15 });
+    noiseHit(c, o, t, { type: 'highpass', f: 3000, f2: 1200, peak: 0.12 * v, d: 0.08 });
+    flesh(c, o, t + 0.02, 0.6 * v, 0.22);
+    thud(c, o, t + 0.02, 110, 0.45 * v, 0.2);
+    mail(c, o, t + 0.02, 0.06 * v, 3);
   },
   blunt: (c, o, t, v) => {
-    tone(c, o, t, { type: 'sine', f: 110, f2: 40, peak: 0.6 * v, d: 0.25 });
-    noiseHit(c, o, t, { type: 'lowpass', f: 600, peak: 0.4 * v, d: 0.15 });
+    thud(c, o, t, 85, 0.8 * v, 0.28);
+    crack(c, o, t + 0.01, 0.2 * v, 5);
+    flesh(c, o, t + 0.02, 0.25 * v, 0.1);
   },
   magic: (c, o, t, v) => {
     [0, 0.06, 0.12, 0.18].forEach((dt, i) => tone(c, o, t + dt, { type: 'triangle', f: 660 * Math.pow(1.26, i), peak: 0.1 * v, d: 0.5 }));
@@ -171,8 +223,9 @@ export const SFX: Record<string, SfxFn> = {
     noiseHit(c, o, t, { type: 'highpass', f: 3000, peak: 0.15 * v, d: 0.25 });
   },
   arrow: (c, o, t, v) => {
-    noiseHit(c, o, t, { type: 'highpass', f: 2000, peak: 0.2 * v, d: 0.04 });
-    tone(c, o, t, { type: 'sine', f: 220, f2: 90, peak: 0.3 * v, d: 0.08 });
+    noiseHit(c, o, t, { type: 'highpass', f: 2500, peak: 0.12 * v, d: 0.03 });
+    thud(c, o, t + 0.01, 180, 0.35 * v, 0.1);
+    flesh(c, o, t + 0.01, 0.3 * v, 0.08);
   },
   bowshot: (c, o, t, v) => {
     tone(c, o, t, { type: 'sawtooth', f: 140, f2: 110, peak: 0.25 * v, d: 0.25, lp: 1200 });
@@ -180,9 +233,10 @@ export const SFX: Record<string, SfxFn> = {
   },
   trample: (c, o, t, v) => {
     for (let i = 0; i < 4; i++) {
-      tone(c, o, t + i * 0.06, { type: 'sine', f: 120, f2: 45, peak: 0.45 * v, d: 0.15 });
-      noiseHit(c, o, t + i * 0.06, { type: 'lowpass', f: 500, peak: 0.3 * v, d: 0.1 });
+      thud(c, o, t + i * 0.07, 100, 0.55 * v, 0.18);
+      if (i > 1) crack(c, o, t + i * 0.07, 0.18 * v, 3);
     }
+    flesh(c, o, t + 0.15, 0.5 * v, 0.2);
   },
   scream: (c, o, t, v) => {
     const f = r(220, 360);
@@ -193,18 +247,19 @@ export const SFX: Record<string, SfxFn> = {
     voice(c, o, t, { f, f2: f * 0.8, dur: 0.16, peak: 0.16 * v, formants: [500, 900] });
   },
   splat: (c, o, t, v) => {
-    noiseHit(c, o, t, { type: 'lowpass', f: 1400, f2: 200, peak: 0.45 * v, d: 0.25 });
-    for (let i = 0; i < 3; i++) tone(c, o, t + i * 0.05 + r(0, 0.03), { type: 'sine', f: r(200, 400), f2: 60, peak: 0.15 * v, d: 0.08 });
+    flesh(c, o, t, 0.8 * v, 0.3);
+    noiseHit(c, o, t, { type: 'lowpass', f: 900, f2: 150, peak: 0.45 * v, d: 0.3 });
+    for (let i = 0; i < 4; i++) noiseHit(c, o, t + 0.12 + i * r(0.05, 0.12), { type: 'bandpass', f: r(500, 900), q: 4, peak: 0.12 * v, d: 0.04 });
   },
   crunch: (c, o, t, v) => {
-    for (let i = 0; i < 6; i++) noiseHit(c, o, t + i * r(0.015, 0.03), { type: 'bandpass', f: r(1500, 3500), q: 4, peak: 0.25 * v, d: 0.02 });
-    tone(c, o, t, { type: 'sine', f: 90, f2: 40, peak: 0.3 * v, d: 0.2 });
+    crack(c, o, t, 0.35 * v, 8);
+    thud(c, o, t, 70, 0.6 * v, 0.25);
+    flesh(c, o, t + 0.04, 0.4 * v, 0.15);
   },
   bodyfall: (c, o, t, v) => {
-    tone(c, o, t, { type: 'sine', f: 90, f2: 35, peak: 0.55 * v, d: 0.3 });
-    noiseHit(c, o, t, { type: 'lowpass', f: 400, peak: 0.35 * v, d: 0.2 });
-    metal(c, o, t + 0.03, 1300, 0.03 * v, 0.25);
-    metal(c, o, t + 0.11, 1650, 0.02 * v, 0.2);
+    thud(c, o, t, 65, 0.75 * v, 0.32);
+    mail(c, o, t + 0.02, 0.08 * v, 8);
+    noiseHit(c, o, t + 0.05, { type: 'lowpass', f: 300, peak: 0.3 * v, d: 0.25 });
   },
   burn: (c, o, t, v) => {
     noiseHit(c, o, t, { type: 'bandpass', f: 1200, q: 0.7, peak: 0.25 * v, a: 0.15, h: 0.4, d: 0.5 });
@@ -219,8 +274,8 @@ export const SFX: Record<string, SfxFn> = {
     SFX.hoof(c, o, t, v * 0.6);
   },
   land: (c, o, t, v) => {
-    tone(c, o, t, { type: 'sine', f: 100, f2: 40, peak: 0.5 * v, d: 0.2 });
-    noiseHit(c, o, t, { type: 'lowpass', f: 500, peak: 0.3 * v, d: 0.15 });
+    thud(c, o, t, 90, 0.6 * v, 0.22);
+    mail(c, o, t + 0.01, 0.05 * v, 4);
   },
   thunder: (c, o, t, v) => {
     const src = c.createBufferSource();
@@ -271,6 +326,20 @@ export const SFX: Record<string, SfxFn> = {
   promote: (c, o, t, v) => {
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(c, o, t + i * 0.08, { type: 'triangle', f, peak: 0.1 * v, d: 0.6 }));
     noiseHit(c, o, t, { type: 'highpass', f: 5000, peak: 0.08 * v, a: 0.2, d: 0.8 });
+  },
+  parry: (c, o, t, v) => {
+    // Stahl auf Stahl: kurz, hart, schnell gedämpft
+    noiseHit(c, o, t, { type: 'highpass', f: 2500, peak: 0.35 * v, d: 0.05 });
+    metal(c, o, t, r(620, 760), 0.12 * v, 0.18);
+    thud(c, o, t, 160, 0.25 * v, 0.1);
+  },
+  sever: (c, o, t, v) => {
+    // Glied ab: Schnitt, Knochen bricht, dann schwallweise Blut
+    noiseHit(c, o, t, { type: 'highpass', f: 3500, f2: 1500, peak: 0.15 * v, d: 0.06 });
+    crack(c, o, t + 0.02, 0.4 * v, 7);
+    flesh(c, o, t + 0.02, 0.8 * v, 0.25);
+    thud(c, o, t + 0.02, 95, 0.5 * v, 0.22);
+    for (let i = 0; i < 5; i++) noiseHit(c, o, t + 0.25 + i * 0.13, { type: 'bandpass', f: 600, f2: 300, q: 1.2, peak: (0.3 - i * 0.05) * v, d: 0.1 });
   },
   castle: (c, o, t, v) => {
     noiseHit(c, o, t, { type: 'lowpass', f: 300, peak: 0.25 * v, a: 0.1, h: 0.4, d: 0.3 });

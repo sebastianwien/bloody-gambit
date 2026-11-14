@@ -2,7 +2,7 @@ import type { Move } from '../../shared/rules.ts';
 import { ANIM_FPS } from '../config.ts';
 import { Actor } from '../scene/actor.ts';
 import { cutImage, opaqueRows, splitImage } from '../scene/effects.ts';
-import { boardToScreen, dirFromDelta, squareToBoard } from '../scene/iso.ts';
+import { boardToScreen, dirFromDelta, screenToBoard, squareToBoard } from '../scene/iso.ts';
 import { PAL } from '../scene/palette.ts';
 import { ctx2d, makeCanvas } from '../scene/sprites.ts';
 import type { Stage } from '../scene/stage.ts';
@@ -44,6 +44,10 @@ export class BattleRunner {
   hooks: BattleHooks = {};
   /** Zuletzt gespielter Plan (für Tests und Anzeige). */
   last: BattlePlan | null = null;
+  /** Testhilfe: diese Todesart bevorzugen. */
+  forceDeath: DeathVariant | null = null;
+  /** Stumpf nach dem Abtrennen (für die Fontäne beim Verbluten). */
+  private stump: { dx: number; z: number } | null = null;
 
   constructor(private stage: Stage) {}
 
@@ -61,7 +65,10 @@ export class BattleRunner {
   }
 
   async run(a: Actor, v: Actor, move: Move, seedExtra = 0) {
-    const plan = planBattle(a.kind, v.kind, hashString(move.lan + ':' + seedExtra + ':' + move.before));
+    this.stump = null;
+    let plan = planBattle(a.kind, v.kind, hashString(move.lan + ':' + seedExtra + ':' + move.before));
+    // Testhilfe: bestimmte Todesart erzwingen (Bild-für-Bild-Prüfung)
+    for (let k = 0; this.forceDeath && plan.death !== this.forceDeath && k < 300; k++) plan = planBattle(a.kind, v.kind, k);
     this.last = plan;
     const st = this.stage;
     const target = squareToBoard(move.to);
@@ -212,17 +219,17 @@ export class BattleRunner {
         this.face(v, a);
         // Mit Angriffsbildern (Seitenansicht) stellen sich beide seitlich auf
         if (st.srcFor(a).frames(a.kind, a.side, 'attack', 'e').length > 1) {
+          // Duell-Aufstellung: Angreifer stellt sich auf gleiche Bildhöhe neben das Opfer,
+          // weil die Kampfbilder Seitenansichten sind
           const pa = this.pos(a);
           const pv = this.pos(v);
-          let dx = pv.x - pa.x;
-          if (Math.abs(dx) < 18) {
-            // fast senkrecht übereinander: Angreifer tritt zur Seite
-            const side = pa.x < 480 ? -1 : 1;
-            await this.t.run(0.2, (k) => (a.ox = side * 20 * k));
-            dx = -side * 20;
-          }
-          a.dir = dx >= 0 ? 'e' : 'w';
-          v.dir = dx >= 0 ? 'w' : 'e';
+          let side = Math.sign(pa.x - pv.x);
+          if (Math.abs(pa.x - pv.x) < 6) side = pv.x < 480 ? 1 : -1;
+          const gap = a.kind === 'n' || v.kind === 'n' ? 46 : 34;
+          const target = screenToBoard(pv.x + side * gap, pv.y, st.flipped);
+          await this.walk(a, target.x, target.y, 1.6);
+          a.dir = side > 0 ? 'w' : 'e';
+          v.dir = side > 0 ? 'e' : 'w';
         }
         v.play('idle', true);
         await this.t.wait(0.18);
@@ -341,6 +348,7 @@ export class BattleRunner {
         // Fontäne aus dem Stumpf, Opfer taumelt
         const cutX = pv.x + (res.cut.x - f.ax) * sc;
         const cutZ = (f.ay - res.cut.y) * sc;
+        this.stump = { dx: cutX - pv.x, z: cutZ };
         await this.t.run(0.8, (k) => {
           if (Math.random() < 0.8) st.effects.blood(cutX, pv.y, cutZ, 2, -dir.x * 0.4, 0.45, 1.2 - k * 0.6);
           v.rot = Math.sin(k * Math.PI * 3) * 0.06;
@@ -634,6 +642,33 @@ export class BattleRunner {
         fx.shatter(burnt, f.w, f.h, x0, y0, p.y, 0.25, 2 / sc, () => (Math.random() < 0.5 ? PAL.stone2 : PAL.stone1), sc);
         fx.smoke(p.x, p.y, 10, 8);
         await this.t.wait(0.9);
+        break;
+      }
+      case 'bleedout': {
+        // Taumeln, auf die Knie sinken, nach vorn kippen; der Stumpf blutet weiter
+        const stump = this.stump ?? { dx: 0, z: 26 };
+        const fall = dir.x >= 0 ? 1 : -1;
+        await this.t.run(0.7, (k) => {
+          v.rot = Math.sin(k * Math.PI * 2.5) * 0.07;
+          v.ox = Math.sin(k * Math.PI * 1.5) * 2;
+          if (Math.random() < 0.7) fx.blood(p.x + stump.dx + v.ox, p.y, stump.z * (1 - k * 0.2), 2, 0, 0.35, 1);
+        });
+        this.sfx('grunt', v);
+        // Knie geben nach: Figur sackt ein
+        await this.t.run(0.35, (k) => {
+          v.oy = 7 * ease.in(k);
+          v.rot = fall * 0.12 * k;
+          if (Math.random() < 0.5) fx.blood(p.x + stump.dx, p.y, stump.z * 0.7, 1, 0, 0.3, 0.6);
+        });
+        await this.t.wait(0.25);
+        await this.t.run(0.4, (k) => (v.rot = fall * (0.12 + (Math.PI / 2 - 0.12) * ease.in(k))));
+        this.sfx('bodyfall', v);
+        st.shake(3);
+        fx.dust(p.x + fall * 18, p.y, 10);
+        fx.pool(p.x + fall * 14, p.y, 9);
+        fx.pool(p.x, p.y, 7);
+        await this.t.wait(0.7);
+        await this.t.run(0.35, (k) => (v.alpha = 1 - k));
         break;
       }
       case 'launch': {

@@ -419,9 +419,17 @@ export class App {
     });
   }
 
+  /** Testhilfe: Zeit von Hand weiterschalten (für Bild-für-Bild-Aufnahmen). */
+  manual = false;
+  advance(dt: number) {
+    this.stage.update(dt);
+    this.stage.draw();
+  }
+
   protected tick(now: number) {
     const dt = Math.min(0.1, Math.max(0, (now - this.last) / 1000));
     this.last = now;
+    if (this.manual) return;
     if (this.mode === 'title' || this.mode === 'menu') {
       // Langsame Kamerafahrt über das Brett im Hintergrund
       const t = now / 1000;
