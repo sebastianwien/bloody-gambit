@@ -228,14 +228,18 @@ function whinny(ctx: AudioContext, out: AudioNode, t: number, peak: number) {
 
 /** Schritt in Plattenrüstung: dumpfer Stiefel, Platten schlagen nach, Kettenhemd klirrt. */
 function armorStep(ctx: AudioContext, out: AudioNode, t: number, v: number) {
-  thud(ctx, out, t, r(70, 85), 0.06 * v, 0.1);
-  noiseHit(ctx, out, t, { type: 'lowpass', f: 260, peak: 0.12 * v, d: 0.07 });
-  // Platten setzen versetzt nach (Bein, Hüfte, Schulter)
-  for (const dt of [r(0.01, 0.025), r(0.04, 0.07), r(0.08, 0.11)]) {
-    metal(ctx, out, t + dt, r(950, 1500), r(0.025, 0.045) * v, r(0.07, 0.13));
-    noiseHit(ctx, out, t + dt, { type: 'bandpass', f: r(2500, 4000), q: 2, peak: 0.05 * v, d: 0.02 });
+  // Eisenschuh setzt auf: dumpfer Schlag plus kurzer, tiefer Metallklang
+  thud(ctx, out, t, r(70, 85), 0.08 * v, 0.1);
+  noiseHit(ctx, out, t, { type: 'lowpass', f: 300, peak: 0.16 * v, d: 0.07 });
+  metal(ctx, out, t, r(320, 420), 0.09 * v, 0.12);
+  noiseHit(ctx, out, t, { type: 'bandpass', f: r(1800, 2600), q: 3, peak: 0.12 * v, d: 0.03 });
+  // Platten schlagen gegeneinander und klingen nach (Beinschiene, Tasse, Brust, Schulter)
+  for (const dt of [r(0.015, 0.03), r(0.045, 0.07), r(0.08, 0.11), r(0.12, 0.16)]) {
+    metal(ctx, out, t + dt, r(700, 2200), r(0.06, 0.1) * v, r(0.18, 0.32));
+    noiseHit(ctx, out, t + dt, { type: 'bandpass', f: r(3000, 5000), q: 2.5, peak: 0.1 * v, d: 0.025 });
   }
-  mail(ctx, out, t + 0.015, 0.07 * v, 7);
+  // Kettenhemd rasselt dicht hinterher
+  for (let i = 0; i < 14; i++) noiseHit(ctx, out, t + 0.01 + i * r(0.008, 0.016), { type: 'bandpass', f: r(4500, 8000), q: 3, peak: r(0.05, 0.11) * v, d: r(0.01, 0.025) });
 }
 
 /** Schrittgeräusch je Figur: Pferd Hufe, Turm Stein, alle anderen Rüstung. */
