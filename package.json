@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:online": "tsc --noEmit && vite build --base=./ --outDir dist-online --emptyOutDir",
     "preview": "vite preview --port 5180 --strictPort",
     "server": "node server/src/index.ts",
     "start:all": "node tools/start-all.mjs",

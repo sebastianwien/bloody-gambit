@@ -528,7 +528,7 @@ export class LightingLayer implements Layer {
 
 /** Baut alle Umgebungsebenen auf und hängt sie in die Bühne. */
 export function setupEnvironment(stage: Stage, hooks: EnvHooks = {}) {
-  const bg = new BackgroundLayer('/assets/background.png');
+  const bg = new BackgroundLayer(import.meta.env.BASE_URL + 'assets/background.png');
   const clouds = new CloudLayer();
   const lightning = new LightningLayer(clouds);
   lightning.hooks = hooks;

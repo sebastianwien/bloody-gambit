@@ -83,9 +83,9 @@ export class App {
       if (now - this.last > 120) this.tick(now);
     }, 50);
     this.screens.loading(0, 'Lade Figuren');
-    this.sprites = await AtlasSprites.load('/assets/pieces', new PlaceholderSprites(), (p) => this.screens.loading(p * 0.9, 'Lade Figuren'));
+    this.sprites = await AtlasSprites.load(import.meta.env.BASE_URL + 'assets/pieces', new PlaceholderSprites(), (p) => this.screens.loading(p * 0.9, 'Lade Figuren'));
     this.stage.sprites = this.sprites;
-    this.stage.hd = await AtlasSprites.load('/assets/battle', new PlaceholderSprites());
+    this.stage.hd = await AtlasSprites.load(import.meta.env.BASE_URL + 'assets/battle', new PlaceholderSprites());
     this.screens.loading(0.95, 'Lade Burgruine');
     await this.env.bg.ready();
     this.screens.loading(1, 'Bereit');
