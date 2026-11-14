@@ -1,11 +1,9 @@
 import { VIEW_H, VIEW_W } from '../config.ts';
 
-/** Skaliert die logische 960x540-Fläche passend ins Fenster. */
+/** Skaliert die logische 960x540-Fläche so groß wie möglich ins Fenster (Rand nur durch das Seitenverhältnis). */
 export function fitViewport(root: HTMLElement) {
   const apply = () => {
-    const s = Math.min(window.innerWidth / VIEW_W, window.innerHeight / VIEW_H);
-    // Ab 2x auf ganze Zahlen runden: gleichmäßige Pixel
-    const scale = s >= 2 ? Math.floor(s) : s >= 1 ? Math.floor(s * 2) / 2 || s : s;
+    const scale = Math.min(window.innerWidth / VIEW_W, window.innerHeight / VIEW_H);
     root.style.transform = `scale(${scale}) translate(-50%, -50%)`;
     root.style.transformOrigin = '0 0';
     root.style.left = '50%';
