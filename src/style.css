@@ -1,0 +1,108 @@
+@font-face {
+  font-family: 'Wolfsrune';
+  src: url('/fonts/wolfsrune.otf') format('opentype');
+  font-display: block;
+}
+
+:root {
+  --ink: #0d0a0e;
+  --night0: #0e0c1a;
+  --night2: #24203f;
+  --stone1: #2a2629;
+  --stone2: #3d3838;
+  --stone3: #57504b;
+  --stone5: #9c917f;
+  --stone6: #c2b8a2;
+  --cream: #e4d9bf;
+  --fire2: #e8862a;
+  --fire3: #ffd25e;
+  --blood2: #a3161b;
+  --wolfred: #7a1c22;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #050407;
+  overflow: hidden;
+  font-family: 'Wolfsrune', monospace;
+  color: var(--cream);
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  user-select: none;
+}
+
+#root {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 960px;
+  height: 540px;
+  transform-origin: 0 0;
+}
+
+#view {
+  position: absolute;
+  inset: 0;
+  width: 960px;
+  height: 540px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  cursor: default;
+}
+
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-size: 10px;
+  line-height: 1;
+}
+
+#ui > * { pointer-events: auto; }
+#ui .passthrough { pointer-events: none; }
+#ui .passthrough * { pointer-events: auto; }
+
+/* Rahmen im Stil eingelassener Steinplatten */
+.panel {
+  background: rgba(14, 12, 20, 0.86);
+  border: 2px solid var(--ink);
+  box-shadow: inset 0 0 0 1px var(--stone3), inset 0 0 0 2px var(--ink), 0 2px 0 rgba(0, 0, 0, 0.6);
+  padding: 8px;
+}
+
+.btn {
+  display: block;
+  font-family: inherit;
+  font-size: 20px;
+  line-height: 20px;
+  color: var(--stone6);
+  background: var(--stone1);
+  border: 2px solid var(--ink);
+  box-shadow: inset 1px 1px 0 var(--stone3), inset -1px -1px 0 #17141a;
+  padding: 6px 12px 7px;
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+}
+.btn.small { font-size: 10px; line-height: 10px; padding: 4px 8px 5px; }
+.btn:hover, .btn:focus-visible { color: var(--fire3); background: #3a2a24; }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { color: var(--stone3); cursor: default; background: var(--stone1); }
+.btn.primary { color: var(--fire3); }
+
+.title-big { font-size: 40px; line-height: 40px; color: var(--cream); text-shadow: 2px 2px 0 var(--ink); }
+.title-mid { font-size: 20px; line-height: 20px; color: var(--fire3); text-shadow: 1px 1px 0 var(--ink); }
+.muted { color: var(--stone5); }
+.hidden { display: none !important; }
+
+.modal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 4, 8, 0.55);
+}
