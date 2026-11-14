@@ -7,7 +7,7 @@ type Rect = [number, number, number, number, number, number];
 interface AtlasJson {
   frames: Record<string, Rect>;
   joints?: Record<string, Record<string, Record<string, [number, number]>>>;
-  meta?: Record<string, { impact: number; reach: number }>;
+  meta?: Record<string, AnimMeta>;
 }
 
 const MIRROR: Partial<Record<Dir8, Dir8>> = { w: 'e', e: 'w', sw: 'se', se: 'sw', nw: 'ne', ne: 'nw' };
@@ -53,6 +53,14 @@ function hsl(h: number, s: number, l: number): [number, number, number] {
   return [Math.round((rgb[0] + m) * 255), Math.round((rgb[1] + m) * 255), Math.round((rgb[2] + m) * 255)];
 }
 
+/** Trefferbild und Reichweite nach vorn sowie nach hinten (Pixel der Quelle). */
+export interface AnimMeta {
+  impact: number;
+  reach: number;
+  impactBack?: number;
+  back?: number;
+}
+
 /** Lädt den Atlas, erzeugt Schwarz per Palettentausch und füllt fehlende Richtungen auf. */
 export class AtlasSprites implements SpriteSource {
   private base = new Map<string, Frame>();
@@ -62,7 +70,7 @@ export class AtlasSprites implements SpriteSource {
   private meta: NonNullable<AtlasJson['meta']> = {};
 
   /** Trefferbild und Reichweite (Pixel der Quelle) einer Animation, egal welche Seite gezeichnet wurde. */
-  animMeta(kind: PieceSymbol, anim: string): { impact: number; reach: number } | null {
+  animMeta(kind: PieceSymbol, anim: string): AnimMeta | null {
     for (const d of ['e', 'w', 's', 'n']) {
       const m = this.meta[`${kind}/${anim}/${d}`];
       if (m) return m;

@@ -103,7 +103,10 @@ export class Director {
 
   async moveActor(a: Actor, to: Square, piece: PieceSymbol) {
     const b = squareToBoard(to);
-    if (piece === 'n') await this.jumpTo(a, b.x + 0.5, b.y + 0.5);
+    // Springer galoppiert, wenn es Galopp-Bilder gibt (sonst Bogensprung)
+    const gallop = this.stage.sprites.frames(a.kind, a.side, 'walk', 'e').length > 1;
+    if (piece === 'n' && !gallop) await this.jumpTo(a, b.x + 0.5, b.y + 0.5);
+    else if (piece === 'n') await this.walkTo(a, b.x + 0.5, b.y + 0.5, this.walkDuration(Math.hypot(b.x + 0.5 - a.bx, b.y + 0.5 - a.by)) * 0.8);
     else await this.walkTo(a, b.x + 0.5, b.y + 0.5);
   }
 

@@ -36,7 +36,9 @@ export type Step =
   /** Beide drehen sich zueinander. */
   | { t: 'face' }
   /** Angreifer spielt eine Animation (oder Ausfallschritt im Code, wenn keine Bilder da sind). */
-  | { t: 'anim'; who: 'a' | 'v'; anim: 'attack' | 'hurt' | 'parry' | 'victory'; lunge?: number }
+  | { t: 'anim'; who: 'a' | 'v'; anim: 'attack' | 'hurt' | 'parry' | 'victory' | 'kick' | 'stomp'; lunge?: number }
+  /** Angreifer dreht dem Opfer das Hinterteil zu (Pferd vor dem Ausschlagen). */
+  | { t: 'turn' }
   /** Ausfallschritt Richtung Opfer und zurück (Pixel). */
   | { t: 'lunge'; px: number; dur: number }
   /** Treffer: Blitz, Wackeln, Blut. */
@@ -83,6 +85,32 @@ interface Finisher {
   build(death: DeathVariant): Step[];
 }
 
+/**
+ * Springer: Wegschleudern, Umwerfen oder Einreißen mit den Hinterhufen (Ausschlagen),
+ * Zerquetschen und Zerplatzen unter den Vorderhufen (Niedertrampeln).
+ */
+const KICK_DEATHS: DeathVariant[] = ['launch', 'fall', 'crumble'];
+function hoofBuild(death: DeathVariant): Step[] {
+  if (KICK_DEATHS.includes(death)) {
+    return [
+      { t: 'approach', stop: 1 },
+      { t: 'face' },
+      { t: 'turn' },
+      { t: 'anim', who: 'a', anim: 'kick' },
+      { t: 'hit', blood: 22, shake: 8, sound: 'trample' },
+      { t: 'death', variant: death },
+    ];
+  }
+  return [
+    { t: 'approach', stop: 1 },
+    { t: 'face' },
+    { t: 'anim', who: 'v', anim: 'parry' },
+    { t: 'anim', who: 'a', anim: 'stomp' },
+    { t: 'hit', blood: 30, shake: 9, sound: 'trample' },
+    { t: 'death', variant: death },
+  ];
+}
+
 /** Ein allgemeiner Finisher je Angreifer: damit laufen alle 30 Paarungen sofort. */
 const GENERIC: Record<PieceSymbol, Finisher> = {
   p: {
@@ -100,16 +128,9 @@ const GENERIC: Record<PieceSymbol, Finisher> = {
     ],
   },
   n: {
-    id: 'niederreiten',
-    deaths: ['squash', 'gib', 'fall', 'split'],
-    build: (death) => [
-      { t: 'approach', stop: 1.1 },
-      { t: 'face' },
-      { t: 'rear' },
-      { t: 'leap', height: 30 },
-      { t: 'hit', blood: 26, shake: 6, sound: 'trample' },
-      { t: 'death', variant: death },
-    ],
+    id: 'hufe',
+    deaths: ['launch', 'squash', 'gib'],
+    build: hoofBuild,
   },
   b: {
     id: 'heiliger-zorn',
@@ -178,19 +199,6 @@ export const CUSTOM: Partial<Record<string, Finisher>> = {
       { t: 'hit', blood: 16, shake: 5, sound: 'slash' },
       ...(death === 'bleedout' ? [{ t: 'sever', part: 'arm' } as Step] : []),
       { t: 'death', variant: death },
-    ],
-  },
-  // Springer schlägt Bauer: Pferd steigt und trampelt
-  np: {
-    id: 'huftritt',
-    deaths: ['squash', 'launch', 'gib'],
-    build: (death) => [
-      { t: 'approach', stop: 0.75 },
-      { t: 'face' },
-      { t: 'rear' },
-      { t: 'hit', blood: 26, shake: 7, sound: 'trample' },
-      { t: 'death', variant: death },
-      { t: 'gag', gag: 'shrug' },
     ],
   },
   // Läufer schlägt Bauer: Kopfnuss mit dem Stab, Sternchen, dann heiliges Feuer
@@ -265,19 +273,17 @@ export const CUSTOM: Partial<Record<string, Finisher>> = {
       { t: 'gag', gag: 'cheer' },
     ],
   },
-  // Springer schlägt Springer: Lanzenstechen
-  nn: {
-    id: 'tjost',
-    deaths: ['fall', 'gib'],
-    build: (death) => [
-      { t: 'approach', stop: 1.6 },
-      { t: 'face' },
-      { t: 'leap', height: 18 },
-      { t: 'hit', blood: 28, shake: 7, sound: 'slash' },
-      { t: 'death', variant: death },
-    ],
-  },
 };
+
+// Springer gegen jedes Opfer: Tode je nach Opfer (ein Pferd wirft man um, einen Turm reißt man ein)
+const HOOF_DEATHS: Record<Victim, DeathVariant[]> = {
+  p: ['launch', 'squash', 'gib'],
+  n: ['fall', 'gib'],
+  b: ['launch', 'squash', 'gib'],
+  r: ['crumble'],
+  q: ['launch', 'squash', 'gib'],
+};
+for (const v of Object.keys(HOOF_DEATHS) as Victim[]) CUSTOM['n' + v] = { id: 'hufe', deaths: HOOF_DEATHS[v], build: hoofBuild };
 
 export function registerCustom(attacker: PieceSymbol, victim: Victim, f: Finisher) {
   CUSTOM[attacker + victim] = f;
@@ -356,6 +362,9 @@ export function estimateDuration(plan: BattlePlan): number {
       case 'rear':
       case 'helmet':
         s += 0.45;
+        break;
+      case 'turn':
+        s += 0.3;
         break;
       case 'dizzy':
         s += st.s;

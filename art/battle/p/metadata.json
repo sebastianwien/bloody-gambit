@@ -52,6 +52,20 @@
               "Idle/animations/attack/east/frame_007.png"
             ]
           },
+          "attack2": {
+            "east": [
+              "Idle/animations/attack2/east/frame_000.png",
+              "Idle/animations/attack2/east/frame_001.png",
+              "Idle/animations/attack2/east/frame_002.png",
+              "Idle/animations/attack2/east/frame_003.png",
+              "Idle/animations/attack2/east/frame_004.png",
+              "Idle/animations/attack2/east/frame_005.png",
+              "Idle/animations/attack2/east/frame_006.png",
+              "Idle/animations/attack2/east/frame_007.png",
+              "Idle/animations/attack2/east/frame_008.png",
+              "Idle/animations/attack2/east/frame_009.png"
+            ]
+          },
           "stance": {
             "east": [
               "Idle/animations/stance/east/frame_000.png",
@@ -81,5 +95,5 @@
     }
   ],
   "export_version": "3.1",
-  "export_date": "2026-11-14T14:06:26.234902"
+  "export_date": "2026-11-14T16:40:14.779385"
 }

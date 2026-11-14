@@ -32,6 +32,8 @@ export class Actor {
   quirkIn = 4 + Math.random() * 14;
   /** Eigenes Bild (Todesvarianten), ersetzt die Animation. */
   override: Frame | null = null;
+  /** Endbild einer Abwehr halten (nicht in den Kampfstand zurück), bis der Treffer kommt. */
+  hold = false;
   /** Blickrichtung im Ruhezustand. */
   restDir: Dir8 = 's';
   /** Laufen ohne eigene Laufbilder: Schaukeln im Code. */

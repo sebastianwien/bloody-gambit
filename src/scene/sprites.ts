@@ -22,7 +22,10 @@ export type AnimName =
   | 'parry'
   | 'stance'
   | 'victory'
-  | 'defeat';
+  | 'defeat'
+  | 'kick'
+  | 'stomp'
+  | 'die';
 
 export interface SpriteSource {
   frames(kind: PieceSymbol, side: Color, anim: AnimName, dir: Dir8): Frame[];

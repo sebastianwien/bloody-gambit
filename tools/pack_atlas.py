@@ -120,23 +120,34 @@ def main():
         # Verworfene Animationen: art/chars/<kind>/SKIP, Zeilen "ordnername/richtung"
         skip_file = kdir / 'SKIP'
         skip = set(skip_file.read_text().split()) if skip_file.exists() else set()
-        # Umleitungen: art/chars/<kind>/REMAP, Zeilen "ordner/richtung neue_richtung bilder_vorne_weglassen"
+        # Umleitungen: art/chars/<kind>/REMAP, Zeilen "ordner/richtung neue_richtung bilder_vorne_weglassen [neuer_name]"
         remap = {}
         remap_file = kdir / 'REMAP'
         if remap_file.exists():
             for line in remap_file.read_text().splitlines():
                 parts = line.split()
-                if len(parts) == 3:
-                    remap[parts[0]] = (parts[1], int(parts[2]))
+                if len(parts) in (3, 4):
+                    remap[parts[0]] = (parts[1], int(parts[2]), parts[3] if len(parts) == 4 else None)
+        # Trefferbild von Hand: art/chars/<kind>/IMPACT, Zeilen "animation bild" (wenn die Weite es nicht zeigt,
+        # z. B. Hufe, die beim Niedertrampeln von oben kommen)
+        impact_file = kdir / 'IMPACT'
+        impact = {}
+        if impact_file.exists():
+            for line in impact_file.read_text().splitlines():
+                parts = line.split()
+                if len(parts) == 2:
+                    impact[parts[0]] = int(parts[1])
         for anim_root in kdir.glob('*/animations/*'):
-            anim = anim_root.name.lower().split('_')[0].split('-')[0]
-            if anim.startswith('walk'):
-                anim = 'walk'
+            base = anim_root.name.lower().split('_')[0].split('-')[0]
+            if base.startswith('walk'):
+                base = 'walk'
             for d in anim_root.iterdir():
                 if d.name not in DIRS or f'{anim_root.name}/{d.name}' in skip:
                     continue
-                target, drop = remap.get(f'{anim_root.name}/{d.name}', (d.name, 0))
+                target, drop, rename = remap.get(f'{anim_root.name}/{d.name}', (d.name, 0, None))
+                anim = rename or base
                 best = (-1, -1)
+                back = (-1, -1)
                 for i, fp in enumerate(sorted(d.glob('frame_*.png'))[drop:]):
                     im = snap(drop_specks(Image.open(fp).convert('RGBA')), pal)
                     # Größere Animationsleinwand ist mittig um die Ruhe-Leinwand gelegt
@@ -146,11 +157,22 @@ def main():
                     # Reichweite: wie weit ragt das Bild in Blickrichtung über den Fußpunkt hinaus
                     bb = im.getbbox()
                     if bb:
-                        reach = (bb[2] - ax) if DIRS[target] in ('e', 'se', 'ne') else (ax - bb[0])
+                        east = DIRS[target] in ('e', 'se', 'ne')
+                        reach = (bb[2] - ax) if east else (ax - bb[0])
                         if reach > best[1]:
                             best = (i, reach)
+                        # Nach hinten (Ausschlagen mit den Hinterhufen)
+                        rear = (ax - bb[0]) if east else (bb[2] - ax)
+                        if rear > back[1]:
+                            back = (i, rear)
                 if best[0] >= 0:
-                    meta[f'{kind}/{anim}/{DIRS[target]}'] = {'impact': best[0], 'reach': round(best[1], 1)}
+                    hit = impact.get(anim)
+                    meta[f'{kind}/{anim}/{DIRS[target]}'] = {
+                        'impact': best[0] if hit is None else hit,
+                        'reach': round(best[1], 1),
+                        'impactBack': back[0] if hit is None else hit,
+                        'back': round(back[1], 1),
+                    }
         _ = south
 
     # Zuschneiden auf sichtbaren Bereich

@@ -65,6 +65,28 @@ describe('Kampf-Baukasten', () => {
     expect(planBattle('q', 'p', 1).death).toBe('launch');
   });
 
+  it('Springer kämpft mit den Hufen: Ausschlagen mit dem Rücken zum Opfer, sonst Niedertrampeln', () => {
+    for (const v of ['p', 'n', 'b', 'r', 'q'] as const) {
+      const seen = new Set<string>();
+      for (let seed = 0; seed < 40; seed++) {
+        const plan = planBattle('n', v, seed);
+        expect(validatePlan(plan)).toEqual([]);
+        expect(plan.steps.some((s) => s.t === 'leap')).toBe(false);
+        const strike = plan.steps.find((s) => s.t === 'anim' && s.who === 'a');
+        const anim = strike?.t === 'anim' ? strike.anim : null;
+        seen.add(anim ?? '');
+        const turn = plan.steps.findIndex((s) => s.t === 'turn');
+        if (anim === 'kick') expect(turn).toBeGreaterThan(-1);
+        else expect(turn).toBe(-1);
+        if (anim === 'kick') expect(['launch', 'fall', 'crumble']).toContain(plan.death);
+        if (anim === 'stomp') expect(['squash', 'gib']).toContain(plan.death);
+      }
+      // Ein Turm wird eingetreten, ein Pferd umgeworfen oder zertrampelt
+      if (v === 'r') expect([...seen]).toEqual(['kick']);
+      else expect(seen.size).toBe(2);
+    }
+  });
+
   it('ist reproduzierbar über den Seed', () => {
     expect(planBattle('k', 'q', 42)).toEqual(planBattle('k', 'q', 42));
   });

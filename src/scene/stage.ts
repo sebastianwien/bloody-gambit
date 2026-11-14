@@ -1,3 +1,4 @@
+import type { AnimMeta } from './atlasSprites.ts';
 import type { Square } from '../../shared/rules.ts';
 import { VIEW_H, VIEW_W } from '../config.ts';
 import { Actor } from './actor.ts';
@@ -41,7 +42,7 @@ export class Stage {
   hd: (SpriteSource & {
     kinds: Set<string>;
     jointsFor?(kind: string, dir: string): { joints: Record<string, [number, number]>; mirror: boolean } | null;
-    animMeta?(kind: string, anim: string): { impact: number; reach: number } | null;
+    animMeta?(kind: string, anim: string): AnimMeta | null;
   }) | null = null;
 
   /** Vordere Körperausdehnung in Blickrichtung (Weltpixel): wie weit ragt die Figur in Ruhe nach vorn. */
@@ -53,11 +54,28 @@ export class Stage {
     return (f.w - f.ax) * 0.9;
   }
 
-  /** Trefferbild und Reichweite in Weltpixeln, wenn die Figur Kampf-Sprites hat. */
+  /** Hintere Körperausdehnung in der Seitenansicht (Weltpixel), z. B. Pferdehinterteil. */
+  bodyBack(a: Actor): number {
+    const m = this.hd?.kinds.has(a.kind) ? this.hd.animMeta?.(a.kind, 'rot') : null;
+    if (m?.back !== undefined) return m.back * 0.5;
+    return this.bodyFront(a);
+  }
+
+  /** Trefferbild und Reichweite des Hauptangriffs in Weltpixeln, wenn die Figur Kampf-Sprites hat. */
   attackMeta(a: Actor): { impact: number; reach: number } | null {
+    return this.animMeta(a, 'attack');
+  }
+
+  /**
+   * Trefferbild und Reichweite einer Kampf-Animation in Weltpixeln.
+   * Ausschlagen trifft nach hinten: dann zählen Bild und Weite der Hinterhufe.
+   */
+  animMeta(a: Actor, anim: string): { impact: number; reach: number } | null {
     if (!this.hd?.kinds.has(a.kind)) return null;
-    const m = this.hd.animMeta?.(a.kind, 'attack');
-    return m ? { impact: m.impact, reach: m.reach * 0.5 } : null;
+    const m = this.hd.animMeta?.(a.kind, anim);
+    if (!m) return null;
+    if (anim === 'kick' && m.back !== undefined && m.impactBack !== undefined) return { impact: m.impactBack, reach: m.back * 0.5 };
+    return { impact: m.impact, reach: m.reach * 0.5 };
   }
   /** Abdunkeln der Umgebung während eines Kampfes (0..1). */
   dim = 0;
@@ -123,7 +141,7 @@ export class Stage {
         }
       } else if (a.anim === 'quirk' && a.animT * a.fps >= this.sprites.frames(a.kind, a.side, 'quirk', a.dir).length) {
         a.play('idle', true);
-      } else if ((a.anim === 'attack' || a.anim === 'hurt' || a.anim === 'parry') && !a.loop && a.animT * a.fps >= this.srcFor(a).frames(a.kind, a.side, a.anim, a.dir).length + 1) {
+      } else if ((a.anim === 'attack' || a.anim === 'hurt' || a.anim === 'parry') && !a.loop && !a.hold && a.animT * a.fps >= this.srcFor(a).frames(a.kind, a.side, a.anim, a.dir).length + 1) {
         // Nach dem Angriff kurz im Endbild, dann zurück in den Kampfstand (oder die Ruhepose)
         a.play(this.fightIdle(a), true);
       }

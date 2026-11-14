@@ -38,6 +38,15 @@ export interface BattleHooks {
   step?(s: Step): void;
 }
 
+/** Duellposition: Angreifer (bx, by) und Opfer (vbx, vby) in Brettkoordinaten, side = Seite des Angreifers. */
+interface DuelSpot {
+  bx: number;
+  by: number;
+  side: number;
+  vbx: number;
+  vby: number;
+}
+
 /**
  * Spielt einen geplanten Kampf auf der Bühne ab: Anlauf, Finisher, Tod, Rückkehr der Kamera.
  * Alles läuft über stage.tweens, damit ein Klick vorspult.
@@ -49,7 +58,7 @@ export class BattleRunner {
   /** Laufender Kampf ist ein Fernkampf. */
   private ranged = false;
   /** Duellposition des laufenden Kampfes. */
-  private duel: { bx: number; by: number; side: number } | null = null;
+  private duel: DuelSpot | null = null;
   /** Nächster Schritt des Plans (für Entscheidungen wie: überlebt das Opfer diesen Treffer?). */
   private next: Step | null = null;
   /** Testhilfe: diese Todesart bevorzugen. */
@@ -76,6 +85,7 @@ export class BattleRunner {
     this.stump = null;
     this.ranged = false;
     this.duel = null;
+    a.hold = v.hold = false;
     let plan = planBattle(a.kind, v.kind, hashString(move.lan + ':' + seedExtra + ':' + move.before));
     // Testhilfe: bestimmte Todesart erzwingen (Bild-für-Bild-Prüfung)
     for (let k = 0; this.forceDeath && plan.death !== this.forceDeath && k < 300; k++) plan = planBattle(a.kind, v.kind, k);
@@ -155,7 +165,7 @@ export class BattleRunner {
     const dy = ty - a.by;
     const d = Math.hypot(dx, dy);
     const k = Math.max(0, (d - 0.6) / d);
-    if (a.kind === 'n') await this.hop(a, a.bx + dx * k, a.by + dy * k);
+    if (this.hops(a)) await this.hop(a, a.bx + dx * k, a.by + dy * k);
     else await this.walk(a, a.bx + dx * k, a.by + dy * k);
     const p = this.pos(v);
     this.sfx('slash', v);
@@ -169,33 +179,47 @@ export class BattleRunner {
     await this.walk(a, tx, ty);
   }
 
-  /** Duellposition des Angreifers (Brettkoordinaten) oder null, wenn es keine Seitenansicht-Kampfbilder gibt. */
-  private duelSpot(a: Actor, v: Actor): { bx: number; by: number; side: number } | null {
+  /**
+   * Duellposition (Brettkoordinaten) oder null, wenn es keine Seitenansicht-Kampfbilder gibt.
+   * bx/by: Angreifer, vbx/vby: Opfer. Steht das Opfer im Gedränge, tritt es einen halben Schritt heraus.
+   */
+  private duelSpot(a: Actor, v: Actor): DuelSpot | null {
     const st = this.stage;
     const hasSide = st.sprites.frames(a.kind, a.side, 'attack', 'e').length > 1 || !!st.attackMeta(a);
     if (!hasSide) return null;
-    const pa = this.pos(a);
-    const pv = this.pos(v);
     // Abstand: Körper berühren sich höchstens, die Waffe dringt etwa 7 Pixel in den Gegner ein;
     // Fernkämpfer halten gut ein Feld Abstand
-    const meta = st.attackMeta(a);
-    const bodies = st.bodyFront(a) + st.bodyFront(v) + 2;
-    const gap = this.ranged ? 100 : Math.max(bodies, meta ? meta.reach - 7 : 34);
+    // Die Bewegung mit dem Treffer bestimmt den Abstand (Ausschlagen: Hinterhufe, Trampeln: Vorderhufe)
+    const strike = this.last?.steps.find((x) => x.t === 'anim' && x.who === 'a');
+    const anim = strike?.t === 'anim' ? strike.anim : 'attack';
+    const meta = st.animMeta(a, anim) ?? st.attackMeta(a);
+    // Ausschlagen: das Hinterteil zeigt zum Opfer; Niedertrampeln: die Vorderhufe landen auf dem Opfer
+    const bodies = (anim === 'kick' ? st.bodyBack(a) : st.bodyFront(a)) + st.bodyFront(v) + 2;
+    const gap = this.ranged ? 100 : anim === 'stomp' ? st.bodyFront(a) + 4 : Math.max(bodies, meta ? meta.reach - 7 : 34);
     const others = st.actors.filter((o) => o !== a && o !== v && o.visible);
-    const score = (side: number) => {
-      const x = pv.x + side * gap;
-      const b = screenToBoard(x, pv.y, st.flipped);
-      // Neben dem Brett ist verboten, Unbeteiligte im Weg sind schlecht, Umwege leicht schlecht
-      const off = b.x < 0.1 || b.x > 7.9 || b.y < 0.1 || b.y > 7.9 ? 100 : 0;
-      const crowd = others.reduce((n, o) => {
-        const p = this.pos(o);
-        return n + (Math.abs(p.x - x) < 26 && Math.abs(p.y - pv.y) < 16 ? 10 : 0);
-      }, 0);
-      const detour = Math.hypot(x - pa.x, pv.y - pa.y) / 100;
-      return { side, b, cost: off + crowd + detour };
-    };
-    const best = [score(1), score(-1)].sort((p, q) => p.cost - q.cost)[0];
-    return { bx: best.b.x, by: best.b.y, side: best.side };
+    const onBoard = (b: { x: number; y: number }) => b.x >= 0.1 && b.x <= 7.9 && b.y >= 0.1 && b.y <= 7.9;
+    // Unbeteiligte, die mit einer Figur an diesem Punkt überlappen würden
+    const crowd = (b: { x: number; y: number }) =>
+      others.reduce((n, o) => n + (Math.abs(o.bx - b.x) < 0.6 && Math.abs(o.by - b.y) < 0.45 ? 10 : 0), 0);
+    // Opfer bleibt stehen oder tritt einen halben Schritt vor oder zurück (zum Angreifer hin bevorzugt)
+    const toward = Math.sign(a.by - v.by) || 1;
+    const steps = [0, 0.55 * toward, -0.55 * toward];
+    const pa = this.pos(a);
+    let best: (DuelSpot & { cost: number }) | null = null;
+    for (const [i, dy] of steps.entries()) {
+      const vb = { x: v.bx, y: v.by + dy };
+      if (!onBoard(vb)) continue;
+      const pv = boardToScreen(vb.x, vb.y, st.flipped);
+      const vCost = (i === 0 ? 0 : 4 + i) + (i === 0 ? 0 : crowd(vb));
+      for (const side of [1, -1]) {
+        const x = pv.x + side * gap;
+        const b = screenToBoard(x, pv.y, st.flipped);
+        // Neben dem Brett ist verboten, Unbeteiligte im Weg sind schlecht, Umwege leicht schlecht
+        const cost = (onBoard(b) ? 0 : 100) + crowd(b) + vCost + Math.hypot(x - pa.x, pv.y - pa.y) / 100;
+        if (!best || cost < best.cost) best = { bx: b.x, by: b.y, side, vbx: vb.x, vby: vb.y, cost };
+      }
+    }
+    return best;
   }
 
   /** Laufen mit Laufbildern oder Schaukeln. */
@@ -253,10 +277,17 @@ export class BattleRunner {
         const spot = this.duelSpot(a, v);
         if (spot) {
           this.duel = spot;
-          if (Math.hypot(spot.bx - a.bx, spot.by - a.by) > 0.08) {
-            if (a.kind === 'n') await this.hop(a, spot.bx, spot.by);
-            else await this.walk(a, spot.bx, spot.by);
+          const moves: Promise<void>[] = [];
+          if (Math.hypot(spot.vbx - v.bx, spot.vby - v.by) > 0.05) {
+            // Opfer tritt aus dem Gedränge heraus, Blick zum Angreifer
+            this.face(v, a);
+            moves.push(this.walk(v, spot.vbx, spot.vby, 1.4, a));
           }
+          if (Math.hypot(spot.bx - a.bx, spot.by - a.by) > 0.08) {
+            if (this.hops(a)) moves.push(this.hop(a, spot.bx, spot.by));
+            else moves.push(this.walk(a, spot.bx, spot.by));
+          }
+          await Promise.all(moves);
           break;
         }
         const dx = tx - a.bx;
@@ -264,7 +295,7 @@ export class BattleRunner {
         const d = Math.hypot(dx, dy);
         if (d > s.stop) {
           const k = (d - s.stop) / d;
-          if (a.kind === 'n') await this.hop(a, a.bx + dx * k, a.by + dy * k);
+          if (this.hops(a)) await this.hop(a, a.bx + dx * k, a.by + dy * k);
           else await this.walk(a, a.bx + dx * k, a.by + dy * k);
         }
         break;
@@ -300,6 +331,17 @@ export class BattleRunner {
           v.oy *= 1 - k;
         });
         v.play('idle', true);
+        break;
+      }
+      case 'turn': {
+        // Pferd wirft sich herum: Hinterteil zum Opfer, kleiner Satz
+        this.sfx('hoof', a);
+        await this.t.run(0.18, (k) => (a.z = Math.sin(k * Math.PI) * 4));
+        a.z = 0;
+        a.dir = a.dir === 'e' ? 'w' : a.dir === 'w' ? 'e' : a.dir;
+        a.play(st.fightIdle(a), true);
+        this.sfx('hoof', a);
+        await this.t.wait(0.12);
         break;
       }
       case 'parry': {
@@ -425,11 +467,13 @@ export class BattleRunner {
         const frames = st.srcFor(who).frames(who.kind, who.side, s.anim, who.dir);
         const dir = this.toward(who, s.who === 'a' ? v : a);
         if (frames.length > 1) {
-          this.sfx('swing', who);
+          this.sfx(who.kind === 'n' ? 'jump' : 'swing', who);
           who.play(s.anim, false);
+          // Opfer bleibt in Deckung, bis der Schlag kommt
+          if (s.who === 'v' && s.anim === 'parry') who.hold = true;
           const dur = frames.length / ANIM_FPS;
-          // Treffer genau im Bild, in dem die Waffe am weitesten vorn ist (sonst hinterer Teil der Bewegung)
-          const meta = s.anim === 'attack' ? st.attackMeta(who) : null;
+          // Treffer genau im Bild, in dem Waffe oder Huf am weitesten vorn ist (sonst hinterer Teil der Bewegung)
+          const meta = s.who === 'a' ? st.animMeta(who, s.anim) : null;
           const until = meta ? (meta.impact + 0.6) / ANIM_FPS : dur * 0.65;
           await this.t.run(until, (k) => {
             if (s.lunge) {
@@ -437,6 +481,9 @@ export class BattleRunner {
               who.oy = dir.y * s.lunge * Math.sin(k * Math.PI * 0.5);
             }
           });
+        } else if (s.who === 'v' || s.anim !== 'attack') {
+          // Opfer ohne gezeichnete Abwehr (oder fehlende Sonderbewegung): nichts vortäuschen
+          break;
         } else {
           // Ohne Angriffsbilder: ausholen und zustoßen
           await this.t.run(0.22, (k) => {
@@ -474,6 +521,8 @@ export class BattleRunner {
         const cutDeath = n?.t === 'sever' || (n?.t === 'death' && ['behead', 'split'].includes(n.variant));
         if (!cutDeath && n?.t !== 'death' && st.srcFor(v).frames(v.kind, v.side, 'hurt', v.dir).length > 1) v.play('hurt', false);
         else if (cutDeath) v.play('idle', true);
+        // Bis zum Tod in Deckung bleiben (sonst stünde das Opfer im Treffer kurz auf)
+        if (n?.t !== 'death') v.hold = false;
         st.shake(s.shake);
         fx.flash = Math.min(1, s.shake / 8);
         v.flash = 1;
@@ -525,6 +574,11 @@ export class BattleRunner {
     }
   }
 
+  /** Springer ohne Galopp-Bilder hüpft, mit Galopp-Bildern galoppiert er. */
+  private hops(a: Actor): boolean {
+    return a.kind === 'n' && this.stage.srcFor(a).frames(a.kind, a.side, 'walk', 'e').length < 2;
+  }
+
   private async hop(a: Actor, tx: number, ty: number) {
     const sx = a.bx;
     const sy = a.by;
@@ -572,7 +626,9 @@ export class BattleRunner {
       prop.life = 1.8;
       prop.x = pv.x + (i - 1) * 4;
       prop.y = pv.y + 1;
+      // Kurz aufblitzen, nicht bis zum nächsten Schritt weiß bleiben
       v.flash = 1;
+      void this.t.run(0.15, (k) => (v.flash = 1 - k));
       this.sfx('arrow', v);
       this.stage.effects.blood(pv.x, pv.y, endZ, 4, 0, 0.6);
     }
@@ -599,9 +655,16 @@ export class BattleRunner {
           await this.t.run(0.5, (k) => (v.rot = Math.sin(k * Math.PI * 3) * 0.08));
         }
         const side = dir.x >= 0 ? 1 : -1;
-        await this.t.run(0.45, (k) => {
-          v.rot = side * (Math.PI / 2) * ease.in(k);
-        });
+        const die = st.srcFor(v).frames(v.kind, v.side, 'die', v.dir);
+        if (die.length > 1) {
+          // Gezeichneter Sturz (Pferd kippt zur Seite), letztes Bild bleibt liegen
+          v.play('die', false);
+          await this.t.wait(die.length / ANIM_FPS);
+        } else {
+          await this.t.run(0.45, (k) => {
+            v.rot = side * (Math.PI / 2) * ease.in(k);
+          });
+        }
         this.sfx('bodyfall', v);
         st.shake(3);
         fx.dust(p.x + side * 20, p.y, 10);

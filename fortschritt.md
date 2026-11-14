@@ -27,6 +27,12 @@ Einzige Wahrheit über den Stand. Nach einer Kontext-Zusammenfassung zuerst hier
 - **Kampf-Sprites für alle Figuren (14.11. nachmittags)**: alle sechs Figuren in 128 px (art/battle/<figur>), Bewegungen per PixelLab skeleton-v3 (feste Bewegungen wie chop, sweep, stab, rear_up, shoot_bow, hit, brace, guard; bleiben in der Seitenansicht, v3 drehte Figuren zum Betrachter). Gelenke für Bauer, König, Dame, Läufer. Packer misst Trefferbild und Reichweite je Angriff und Körperbreite je Figur (meta in battle.json), entfernt lose Flecken (drop_specks).
 - **Kampfregeln im Code**: Duellposition auf gleicher Bildhöhe, auf dem Brett, nicht auf Unbeteiligten; Angreifer läuft direkt dorthin; Abstand = Körper berühren sich höchstens, Waffe dringt ein; Fernkampf (Turm) mit Abstand; Treffer im Bild mit größter Reichweite; Kampfstand zwischen Aktionen; Dramaturgie-Regeln (validatePlan) für alle 30 Paarungen getestet. Bild-für-Bild-Prüfung mit tools/review/battle-strip.mjs geprüft: pp, np, kp, bp, rp, qp, qn.
 - **Verworfen**: v3-Animationen in 128 px (Bauer drehte sich weg, Schlieren); König-Kampfstand ohne Schwert (neu mit Handpositionen); Läufer-Treffer ohne Stab (weggelassen).
+- **Prüfung aller 30 Paarungen (14.11. abends)**: alle Kämpfe Bild für Bild aufgenommen (Zugfolgen siehe Scratchpad-Liste im Verlauf, Werkzeug battle-strip.mjs). Gefunden und behoben:
+  - Bauern-Angriff schaute 6 von 8 Bildern zum Betrachter: neuer Speerstoß per skeleton-v3 (stab), die ersten 3 Bilder verworfen (art/battle/p/REMAP mit Umbenennung, SKIP für den alten Angriff).
+  - Angreifer stellte sich im Gedränge auf Unbeteiligte (Ecke a8, Grundreihe): Opfer tritt bei Bedarf einen halben Schritt heraus, Gedränge wird in Brettkoordinaten geprüft.
+  - Pfeiltreffer ließen das Opfer bis zum nächsten Schritt weiß: Aufblitzen klingt nach 0,15 s ab.
+- **Springer neu (Wunsch Sebastian: brutaler, galoppieren statt fliegen)**: neue Bewegungen per skeleton-v3 (kick, rear_up+paw, fall_over, run). Finisher "hufe" für alle Opfer: Umdrehen und Ausschlagen mit den Hinterhufen (Bauer, Läufer, Dame fliegen weg, Springer stürzt gezeichnet zur Seite, Turm wird eingetreten) oder Aufbäumen und Niedertrampeln (Opfer duckt sich in Deckung, wird zerquetscht oder zerplatzt). Gezeichneter Sturz für jeden Kämpfer mit "die"-Bildern. Galopp auf dem Brett und beim Anlauf statt Bogensprung. Die Brettfigur ist jetzt die verkleinerte Kampf-Figur (tools/downscale_char.py), damit Brett und Kampf dasselbe Pferd zeigen; die alte Ruhe-Eigenheit des Springers entfällt. Packer: Trefferbild auch nach hinten (impactBack, back) und von Hand (IMPACT-Datei).
+- **Verworfen**: Rammen (headbutt) des Pferdes, Pferd liegt dabei flach (SKIP).
 
 ## Budget PixelLab
 
@@ -46,7 +52,7 @@ Startwert: 40 Generierungen (Trial). Abbruchgrenze: unter 4.
 | Turm-Laufen (abgebrochen, nicht berechnet) | 0 |
 | Prototyp: Aufstellung 2x (1), Bauer 128 (2), Skelett (0,1), Speerhieb 8 Bilder auf 180er Leinwand (4) | 7,1 |
 | **Summe laut PixelLab** | **39,2 von 40, Rest 0,8** |
-| Guthaben (aufgeladen 10 $): 6 Figuren 128 px, rund 20 Bewegungen, Skelette | 0,55 $ verbraucht, 9,45 $ übrig |
+| Guthaben (aufgeladen 10 $): 6 Figuren 128 px, rund 30 Bewegungen, Skelette | 0,69 $ verbraucht, 9,31 $ übrig |
 
 OpenAI (gpt-image-2): 2 Bilder (Figurenaufstellung, Hintergrund), ca. 0,15 $.
 
