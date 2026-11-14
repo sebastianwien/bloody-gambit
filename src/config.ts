@@ -20,5 +20,7 @@ export const FAR_SCALE = 0.76;
 export const ANIM_FPS = 8;
 /** Gehen ist langsamer: 6 Bilder pro Sekunde, also drei Schritte pro Sekunde bei vier Laufbildern. */
 export const WALK_FPS = 6;
+/** Bildrate für einen Laufzyklus aus n Bildern: immer drei Schritte pro Sekunde, egal wie fein gezeichnet. */
+export const walkFps = (frames: number) => WALK_FPS * Math.max(1, frames / 4);
 
 export const SERVER_PORT = 8790;

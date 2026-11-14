@@ -137,6 +137,15 @@ def main():
                 parts = line.split()
                 if len(parts) == 2:
                     impact[parts[0]] = int(parts[1])
+        # Einzelbilder verwerfen: art/chars/<kind>/DROPFRAMES, Zeilen "ordner/richtung 7,8" (Bildnummern ab 0,
+        # z. B. das Zwischenbild, in dem PixelLab zwei verkettete Bewegungen über die Grundstellung verbindet)
+        dropframes = {}
+        df_file = kdir / 'DROPFRAMES'
+        if df_file.exists():
+            for line in df_file.read_text().splitlines():
+                parts = line.split()
+                if len(parts) == 2:
+                    dropframes[parts[0]] = {int(x) for x in parts[1].split(',')}
         for anim_root in kdir.glob('*/animations/*'):
             base = anim_root.name.lower().split('_')[0].split('-')[0]
             if base.startswith('walk'):
@@ -148,7 +157,9 @@ def main():
                 anim = rename or base
                 best = (-1, -1)
                 back = (-1, -1)
-                for i, fp in enumerate(sorted(d.glob('frame_*.png'))[drop:]):
+                dropped = dropframes.get(f'{anim_root.name}/{d.name}', set())
+                files = [fp for j, fp in enumerate(sorted(d.glob('frame_*.png'))) if j not in dropped]
+                for i, fp in enumerate(files[drop:]):
                     im = snap(drop_specks(Image.open(fp).convert('RGBA')), pal)
                     # Größere Animationsleinwand ist mittig um die Ruhe-Leinwand gelegt
                     ax = im.width / 2

@@ -1,5 +1,5 @@
 import type { Move, PieceSymbol, Square } from '../../shared/rules.ts';
-import { WALK_FPS } from '../config.ts';
+import { walkFps } from '../config.ts';
 import { Actor } from './actor.ts';
 import { boardToScreen, dirFromDelta, squareToBoard } from './iso.ts';
 import type { Stage } from './stage.ts';
@@ -67,7 +67,7 @@ export class Director {
     const n = this.stage.sprites.frames(a.kind, a.side, 'walk', a.dir).length;
     const own = n > 1;
     // Pferd galoppiert im vollen Takt, alle anderen gehen gemessen
-    a.play('walk', true, a.kind === 'n' ? undefined : WALK_FPS);
+    a.play('walk', true, a.kind === 'n' ? undefined : walkFps(n));
     let lastStep = -1;
     await this.stage.tweens.run(dur ?? this.walkDuration(dist), (t) => {
       const e = ease.inOut(t);

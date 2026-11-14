@@ -1,11 +1,11 @@
 import type { Move } from '../../shared/rules.ts';
 import { footstepSfx } from '../audio/sfx.ts';
-import { ANIM_FPS, WALK_FPS } from '../config.ts';
+import { ANIM_FPS, WALK_FPS, walkFps } from '../config.ts';
 import { Actor } from '../scene/actor.ts';
 import { cutImage, opaqueRows, splitImage } from '../scene/effects.ts';
 import { boardToScreen, dirFromDelta, screenToBoard, squareToBoard } from '../scene/iso.ts';
 import { PAL } from '../scene/palette.ts';
-import { ctx2d, makeCanvas } from '../scene/sprites.ts';
+import { ctx2d, makeCanvas, type AnimName } from '../scene/sprites.ts';
 import type { Stage } from '../scene/stage.ts';
 import { ease } from '../scene/tween.ts';
 import { hashString, mulberry32 } from '../util/random.ts';
@@ -64,6 +64,8 @@ export class BattleRunner {
   private duel: DuelSpot | null = null;
   /** Nächster Schritt des Plans (für Entscheidungen wie: überlebt das Opfer diesen Treffer?). */
   private next: Step | null = null;
+  /** Restliche Schritte des Plans nach dem laufenden. */
+  private upcoming: Step[] = [];
   /** Testhilfe: diese Todesart bevorzugen. */
   forceDeath: DeathVariant | null = null;
   /** Stumpf nach dem Abtrennen (für die Fontäne beim Verbluten). */
@@ -127,6 +129,7 @@ export class BattleRunner {
     let fightCam = { x: camX, y: camY - 18, zoom };
     for (const [i, s] of plan.steps.entries()) {
       this.next = plan.steps[i + 1] ?? null;
+      this.upcoming = plan.steps.slice(i + 1);
       this.hooks.step?.(s);
       await this.step(s, a, v, tx, ty);
       if (s.t === 'approach') {
@@ -245,10 +248,16 @@ export class BattleRunner {
     const to = boardToScreen(tx, ty, this.stage.flipped);
     // Mit faceTo bleibt die vorher gesetzte Blickrichtung zum Gegner stehen
     if (!faceTo) a.dir = dirFromDelta(to.x - from.x, to.y - from.y);
+    const src = this.stage.srcFor(a);
+    // Kampf-Figuren haben Laufbilder nur in der Seitenansicht: schräg gehen mit dem Seitenbild
+    if (!faceTo && a.dir.length === 2 && src.frames(a.kind, a.side, 'walk', a.dir).length < 2) {
+      const side = to.x >= from.x ? 'e' : 'w';
+      if (src.frames(a.kind, a.side, 'walk', side).length > 1) a.dir = side;
+    }
     // Laufbilder nur, wenn Blick und Laufrichtung übereinstimmen (sonst Schaukeln, kein Rückwärts-Laufbild)
-    const n = this.stage.srcFor(a).frames(a.kind, a.side, 'walk', a.dir).length;
+    const n = src.frames(a.kind, a.side, 'walk', a.dir).length;
     const own = !faceTo && n > 1;
-    a.play(own ? 'walk' : 'idle', true, a.kind === 'n' ? ANIM_FPS : WALK_FPS);
+    a.play(own ? 'walk' : 'idle', true, a.kind === 'n' ? ANIM_FPS : own ? walkFps(n) : WALK_FPS);
     let lastStep = -1;
     await this.t.run(Math.min(2.4, 0.35 + d * 0.6) / speed, (k) => {
       const e = ease.inOut(k);
@@ -272,6 +281,34 @@ export class BattleRunner {
   }
 
   /** Einheitsvektor in Bildschirmpixeln von a nach b. */
+  /** Animation, die tatsächlich gespielt wird (zweiter Angriff ohne Bilder: der Hauptangriff). */
+  private strikeAnim(a: Actor, anim: AnimName): AnimName {
+    return anim === 'attack2' && this.stage.srcFor(a).frames(a.kind, a.side, 'attack2', a.dir).length < 2 ? 'attack' : anim;
+  }
+
+  /**
+   * Kommt nach diesem Treffer ein Schlag mit größerer Reichweite (Schildstoß, dann Speerstich), taumelt das Opfer
+   * so weit zurück, dass die Waffe es genau erreicht statt durch den Körper zu gehen.
+   */
+  private async knockback(a: Actor, v: Actor) {
+    if (this.ranged) return;
+    const next = this.upcoming.find((x) => x.t === 'anim' && x.who === 'a');
+    if (next?.t !== 'anim' || !['attack', 'attack2'].includes(next.anim)) return;
+    const reach = this.stage.animMeta(a, this.strikeAnim(a, next.anim))?.reach;
+    if (!reach) return;
+    const pa = this.pos(a);
+    const pv = this.pos(v);
+    const short = reach - 7 - Math.abs(pv.x - pa.x);
+    if (short < 4) return;
+    const side = Math.sign(pv.x - pa.x) || 1;
+    const tb = screenToBoard(pv.x + side * Math.min(60, short), pv.y, this.stage.flipped);
+    const tx = Math.max(0.1, Math.min(7.9, tb.x));
+    const sx = v.bx;
+    this.sfx(footstepSfx(v.kind), v);
+    await this.t.run(0.3, (k) => (v.bx = sx + (tx - sx) * ease.out(k)));
+    this.sfx(footstepSfx(v.kind), v);
+  }
+
   private toward(a: Actor, b: Actor) {
     const pa = this.pos(a);
     const pb = this.pos(b);
@@ -404,8 +441,10 @@ export class BattleRunner {
         const top = pv.y - f.ay * st.scaleOf(v) + 6;
         const stars = [0, 1, 2].map(() => st.effects.addProp({ img: starImage(), w: 3, h: 3, x: pv.x, y: pv.y, z: 0, px: 1, py: 1, gravity: false, still: true, life: s.s + 0.2 }));
         this.sfx('grunt', v);
+        const dazed = st.srcFor(v).frames(v.kind, v.side, 'dazed', v.dir).length > 1;
+        if (dazed) v.play('dazed', true, 7);
         await this.t.run(s.s, (k) => {
-          v.rot = Math.sin(k * Math.PI * 4) * 0.08;
+          v.rot = Math.sin(k * Math.PI * 4) * (dazed ? 0.04 : 0.08);
           stars.forEach((p, i) => {
             const ang = k * Math.PI * 4 + (i * Math.PI * 2) / 3;
             p.x = pv.x + Math.cos(ang) * 9;
@@ -414,6 +453,7 @@ export class BattleRunner {
           });
         });
         v.rot = 0;
+        if (dazed) v.play(st.fightIdle(v), true);
         break;
       }
       case 'sever': {
@@ -478,17 +518,19 @@ export class BattleRunner {
         break;
       case 'anim': {
         const who = s.who === 'a' ? a : v;
-        const frames = st.srcFor(who).frames(who.kind, who.side, s.anim, who.dir);
+        // Zweiter Angriff ohne eigene Bilder: der Hauptangriff
+        const animName = this.strikeAnim(who, s.anim);
+        const frames = st.srcFor(who).frames(who.kind, who.side, animName, who.dir);
         const dir = this.toward(who, s.who === 'a' ? v : a);
         if (s.who === 'a') this.neigh(who);
         if (frames.length > 1) {
           this.sfx(who.kind === 'n' ? 'jump' : 'swing', who);
-          who.play(s.anim, false);
+          who.play(animName, false);
           // Opfer bleibt in Deckung, bis der Schlag kommt
           if (s.who === 'v' && s.anim === 'parry') who.hold = true;
           const dur = frames.length / ANIM_FPS;
           // Treffer genau im Bild, in dem Waffe oder Huf am weitesten vorn ist (sonst hinterer Teil der Bewegung)
-          const meta = s.who === 'a' ? st.animMeta(who, s.anim) : null;
+          const meta = s.who === 'a' ? st.animMeta(who, animName) : null;
           const until = meta ? (meta.impact + 0.6) / ANIM_FPS : dur * 0.65;
           await this.t.run(until, (k) => {
             if (s.lunge) {
@@ -496,7 +538,7 @@ export class BattleRunner {
               who.oy = dir.y * s.lunge * Math.sin(k * Math.PI * 0.5);
             }
           });
-        } else if (s.who === 'v' || s.anim !== 'attack') {
+        } else if (s.who === 'v' || animName !== 'attack') {
           // Opfer ohne gezeichnete Abwehr (oder fehlende Sonderbewegung): nichts vortäuschen
           break;
         } else {
@@ -550,6 +592,7 @@ export class BattleRunner {
           v.oy = dir.y * 3 * Math.sin(k * Math.PI);
         });
         v.ox = v.oy = 0;
+        await this.knockback(a, v);
         // Angreifer zurück in Grundhaltung
         await this.t.run(0.12, (k) => {
           a.ox *= 1 - k;
@@ -671,11 +714,14 @@ export class BattleRunner {
           await this.t.run(0.5, (k) => (v.rot = Math.sin(k * Math.PI * 3) * 0.08));
         }
         const side = dir.x >= 0 ? 1 : -1;
-        const die = st.srcFor(v).frames(v.kind, v.side, 'die', v.dir);
-        if (die.length > 1) {
-          // Gezeichneter Sturz (Pferd kippt zur Seite), letztes Bild bleibt liegen
-          v.play('die', false);
-          await this.t.wait(die.length / ANIM_FPS);
+        // Vom Schlag getroffen: rückwärts weg vom Angreifer; von Pfeilen gespickt: auf die Knie, dann vornüber
+        const sink = variant === 'pincushion' && st.srcFor(v).frames(v.kind, v.side, 'die2', v.dir).length > 1;
+        const anim = sink ? 'die2' : 'die';
+        const die = st.srcFor(v).frames(v.kind, v.side, anim, v.dir);
+        if (die.length > 1 && !v.override) {
+          // Gezeichneter Sturz, letztes Bild bleibt liegen
+          v.play(anim, false, sink ? 7 : ANIM_FPS);
+          await this.t.wait(die.length / (sink ? 7 : ANIM_FPS));
         } else {
           await this.t.run(0.45, (k) => {
             v.rot = side * (Math.PI / 2) * ease.in(k);
@@ -683,9 +729,11 @@ export class BattleRunner {
         }
         this.sfx('bodyfall', v);
         st.shake(3);
-        fx.dust(p.x + side * 20, p.y, 10);
-        fx.pool(p.x + side * 16, p.y, 7);
-        fx.blood(p.x + side * 18, p.y, 4, 8, side, 0.5, 0.4);
+        // Liegt rückwärts vom Angreifer weg oder (auf die Knie gesunken) vornüber zu ihm hin
+        const lay = die.length > 1 && sink ? -side : side;
+        fx.dust(p.x + lay * 20, p.y, 10);
+        fx.pool(p.x + lay * 16, p.y, 7);
+        fx.blood(p.x + lay * 18, p.y, 4, 8, lay, 0.5, 0.4);
         await this.t.wait(0.5);
         await this.t.run(0.35, (k) => (v.alpha = 1 - k));
         break;
@@ -699,11 +747,23 @@ export class BattleRunner {
         const headProp = fx.addProp({ img: head, w: f.w, h: neck, x: p.x, y: p.y, z: (f.ay - neck) * sc, px: f.ax, py: neck, vx: dir.x * 90 + 20, vy: dir.y * 30, vz: 160, vrot: dir.x >= 0 ? 9 : -9, bleed: 1, bounce: 0.45, life: 4, scale: sc });
         const bodyProp = fx.addProp({ img: body, w: f.w, h: f.h - neck, x: p.x, y: p.y, z: 0, px: f.ax, py: f.h - neck - (f.h - f.ay), gravity: false, still: true, life: 4, scale: sc });
         this.sfx('slash', v);
-        // Fontäne aus dem Hals
-        await this.t.run(0.7, () => fx.blood(p.x, p.y, (f.ay - neck) * sc, 2, 0, 0.35, 1.3));
+        const away = dir.x >= 0 ? 1 : -1;
+        // Fontäne aus dem Hals, der Rumpf steht noch und taumelt vom Schlag weg
+        await this.t.run(0.7, (k) => {
+          fx.blood(bodyProp.x, p.y, (f.ay - neck) * sc, 2, 0, 0.35, 1.3);
+          bodyProp.rot = away * Math.sin(k * Math.PI * 2.2) * 0.06 * (1 - k * 0.5);
+          bodyProp.x = p.x + away * 3 * ease.out(k);
+        });
         this.sfx('splat', v);
-        await this.t.run(0.4, (k) => (bodyProp.rot = (dir.x >= 0 ? 1 : -1) * (Math.PI / 2) * ease.in(k)));
+        // Kippt nach hinten weg, schneller werdend wie ein fallender Stamm, federt beim Aufschlag kurz nach
+        const bx = bodyProp.x;
+        await this.t.run(0.45, (k) => {
+          bodyProp.rot = away * (Math.PI / 2) * k * k;
+          bodyProp.x = bx + away * 4 * k;
+          if (Math.random() < 0.6) fx.blood(bodyProp.x, p.y, (f.ay - neck) * sc * (1 - k), 1, away, 0.3, 0.8);
+        });
         this.sfx('bodyfall', v);
+        await this.t.run(0.18, (k) => (bodyProp.rot = away * (Math.PI / 2 - Math.sin(k * Math.PI) * 0.1)));
         fx.pool(p.x, p.y, 8);
         st.shake(3);
         await this.t.wait(0.6);
@@ -719,15 +779,32 @@ export class BattleRunner {
         const R = fx.addProp({ img: r, ...common });
         this.sfx('splat', v);
         fx.blood(p.x, p.y, 30, 30, 0, 1.2, 0.8);
-        await this.t.run(0.5, (k) => {
-          const e = ease.in(k);
-          L.x = p.x - 6 * e;
-          R.x = p.x + 6 * e;
-          L.rot = -1.4 * e;
-          R.rot = 1.4 * e;
+        // Einen Herzschlag lang steht der Körper noch, dann gibt die vom Schlag getroffene Hälfte zuerst nach
+        const sgn = dir.x >= 0 ? 1 : -1;
+        const tip = 0.14;
+        await this.t.run(0.3, (k) => {
+          const hit = sgn > 0 ? R : L;
+          hit.x = p.x + sgn * 2 * k;
+          hit.rot = sgn * tip * k * k;
+          if (Math.random() < 0.5) fx.blood(p.x, p.y, 24, 1, 0, 0.3, 0.6);
+        });
+        // Beide Hälften kippen nach außen, schneller werdend, und federn beim Aufschlag nach
+        const l0 = sgn < 0 ? tip : 0;
+        const r0 = sgn > 0 ? tip : 0;
+        await this.t.run(0.45, (k) => {
+          const e = k * k;
+          L.x = p.x - (sgn < 0 ? 2 : 0) - 6 * e;
+          R.x = p.x + (sgn > 0 ? 2 : 0) + 6 * e;
+          L.rot = -(l0 + (1.45 - l0) * e);
+          R.rot = r0 + (1.45 - r0) * e;
           if (k > 0.2) fx.blood(p.x, p.y, 20, 1, 0, 0.4, 0.6);
         });
         this.sfx('bodyfall', v);
+        await this.t.run(0.16, (k) => {
+          const b = Math.sin(k * Math.PI) * 0.12;
+          L.rot = -1.45 + b;
+          R.rot = 1.45 - b;
+        });
         st.shake(4);
         fx.pool(p.x - 14, p.y, 8);
         fx.pool(p.x + 14, p.y, 8);
@@ -788,6 +865,23 @@ export class BattleRunner {
           if (Math.random() < 0.7) fx.blood(p.x + stump.dx + v.ox, p.y, stump.z * (1 - k * 0.2), 2, 0, 0.35, 1);
         });
         this.sfx('grunt', v);
+        const die2 = st.srcFor(v).frames(v.kind, v.side, 'die2', v.dir);
+        // Gezeichnete Bilder haben beide Arme: nach dem Abtrennen (eigenes Bild mit Stumpf) nur die Bewegung im Code
+        if (die2.length > 1 && !v.override) {
+          // Gezeichnet: sinkt auf die Knie und fällt vornüber (zum Angreifer hin), der Stumpf blutet weiter
+          v.play('die2', false, 7);
+          await this.t.run(die2.length / 7, (k) => {
+            if (Math.random() < 0.6) fx.blood(p.x + stump.dx, p.y, stump.z * (1 - k * 0.8), 1, 0, 0.3, 0.6);
+          });
+          this.sfx('bodyfall', v);
+          st.shake(3);
+          fx.dust(p.x - fall * 18, p.y, 10);
+          fx.pool(p.x - fall * 14, p.y, 9);
+          fx.pool(p.x, p.y, 7);
+          await this.t.wait(0.7);
+          await this.t.run(0.35, (k) => (v.alpha = 1 - k));
+          break;
+        }
         // Knie geben nach: Figur sackt ein
         await this.t.run(0.35, (k) => {
           v.oy = 7 * ease.in(k);
@@ -841,6 +935,18 @@ export class BattleRunner {
   }
 
   private async gag(g: Gag, a: Actor) {
+    // Gezeichnete Siegergeste der Figur statt der Geste aus Kippen und Hüpfen
+    const vic = this.stage.srcFor(a).frames(a.kind, a.side, 'victory', a.dir);
+    if (vic.length > 1 && g !== 'kickHelmet' && g !== 'none') {
+      a.play('victory', false, 7);
+      if (g === 'bless') {
+        const pa = this.pos(a);
+        void this.t.wait(vic.length / 14).then(() => this.stage.effects.sparks(pa.x, pa.y, 60, 8, PAL.fire4));
+      }
+      await this.t.wait(vic.length / 7 + 0.15);
+      a.play(this.stage.fightIdle(a), true);
+      return;
+    }
     switch (g) {
       case 'shrug':
         await this.t.run(0.4, (k) => (a.oy = -Math.abs(Math.sin(k * Math.PI * 2)) * 2));

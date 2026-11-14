@@ -63,6 +63,28 @@
               "Idle/animations/walknorth/north/frame_003.png"
             ]
           },
+          "walkdiag": {
+            "south-east": [
+              "Idle/animations/walkdiag/south-east/frame_000.png",
+              "Idle/animations/walkdiag/south-east/frame_001.png",
+              "Idle/animations/walkdiag/south-east/frame_002.png",
+              "Idle/animations/walkdiag/south-east/frame_003.png",
+              "Idle/animations/walkdiag/south-east/frame_004.png",
+              "Idle/animations/walkdiag/south-east/frame_005.png",
+              "Idle/animations/walkdiag/south-east/frame_006.png",
+              "Idle/animations/walkdiag/south-east/frame_007.png"
+            ],
+            "north-east": [
+              "Idle/animations/walkdiag/north-east/frame_000.png",
+              "Idle/animations/walkdiag/north-east/frame_001.png",
+              "Idle/animations/walkdiag/north-east/frame_002.png",
+              "Idle/animations/walkdiag/north-east/frame_003.png",
+              "Idle/animations/walkdiag/north-east/frame_004.png",
+              "Idle/animations/walkdiag/north-east/frame_005.png",
+              "Idle/animations/walkdiag/north-east/frame_006.png",
+              "Idle/animations/walkdiag/north-east/frame_007.png"
+            ]
+          },
           "walkeast": {
             "east": [
               "Idle/animations/walkeast/east/frame_000.png",
@@ -76,5 +98,5 @@
     }
   ],
   "export_version": "3.1",
-  "export_date": "2026-11-14T12:51:36.790593"
+  "export_date": "2026-11-14T19:13:35.599641"
 }

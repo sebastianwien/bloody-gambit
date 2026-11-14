@@ -25,7 +25,10 @@ export type AnimName =
   | 'defeat'
   | 'kick'
   | 'stomp'
-  | 'die';
+  | 'die'
+  | 'die2'
+  | 'attack2'
+  | 'dazed';
 
 export interface SpriteSource {
   frames(kind: PieceSymbol, side: Color, anim: AnimName, dir: Dir8): Frame[];

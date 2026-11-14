@@ -36,7 +36,7 @@ export type Step =
   /** Beide drehen sich zueinander. */
   | { t: 'face' }
   /** Angreifer spielt eine Animation (oder Ausfallschritt im Code, wenn keine Bilder da sind). */
-  | { t: 'anim'; who: 'a' | 'v'; anim: 'attack' | 'hurt' | 'parry' | 'victory' | 'kick' | 'stomp'; lunge?: number }
+  | { t: 'anim'; who: 'a' | 'v'; anim: 'attack' | 'attack2' | 'hurt' | 'parry' | 'victory' | 'kick' | 'stomp'; lunge?: number }
   /** Angreifer dreht dem Opfer das Hinterteil zu (Pferd vor dem Ausschlagen). */
   | { t: 'turn' }
   /** Ausfallschritt Richtung Opfer und zurück (Pixel). */
@@ -119,9 +119,10 @@ const GENERIC: Record<PieceSymbol, Finisher> = {
     build: (death) => [
       { t: 'approach', stop: 0.72 },
       { t: 'face' },
+      // Schildstoß bringt das Opfer aus dem Gleichgewicht, dann der Speerstich
+      { t: 'anim', who: 'a', anim: 'attack2', lunge: 4 },
+      { t: 'hit', blood: 2, shake: 3, sound: 'blunt' },
       { t: 'anim', who: 'a', anim: 'attack', lunge: 6 },
-      { t: 'hit', blood: 10, shake: 2, sound: 'stab' },
-      { t: 'lunge', px: 8, dur: 0.18 },
       { t: 'hit', blood: 18, shake: 4, sound: 'stab' },
       { t: 'death', variant: death },
       { t: 'gag', gag: 'shrug' },
@@ -138,7 +139,7 @@ const GENERIC: Record<PieceSymbol, Finisher> = {
     build: (death) => [
       { t: 'approach', stop: 1.7 },
       { t: 'face' },
-      { t: 'anim', who: 'a', anim: 'attack' },
+      { t: 'anim', who: 'a', anim: 'attack2' },
       { t: 'projectile', kind: 'bolt', count: 1 },
       { t: 'hit', blood: 8, shake: 5, sound: 'magic' },
       { t: 'death', variant: death },
@@ -163,7 +164,7 @@ const GENERIC: Record<PieceSymbol, Finisher> = {
     build: (death) => [
       { t: 'approach', stop: 0.85 },
       { t: 'face' },
-      { t: 'anim', who: 'a', anim: 'attack', lunge: 4 },
+      { t: 'anim', who: 'a', anim: death === 'split' ? 'attack2' : 'attack', lunge: 4 },
       { t: 'hit', blood: 24, shake: 5, sound: 'slash' },
       { t: 'death', variant: death },
       { t: 'gag', gag: 'bow' },
@@ -175,7 +176,9 @@ const GENERIC: Record<PieceSymbol, Finisher> = {
     build: (death) => [
       { t: 'approach', stop: 0.75 },
       { t: 'face' },
-      { t: 'wait', s: 0.25 },
+      { t: 'anim', who: 'a', anim: 'attack2', lunge: 3 },
+      { t: 'hit', blood: 8, shake: 3, sound: 'slash' },
+      { t: 'wait', s: 0.15 },
       { t: 'anim', who: 'a', anim: 'attack', lunge: 5 },
       { t: 'hit', blood: 30, shake: 8, sound: death === 'squash' ? 'blunt' : 'slash' },
       { t: 'death', variant: death },

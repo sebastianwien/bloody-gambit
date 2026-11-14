@@ -28,6 +28,28 @@
           "south-west": "Idle/rotations/south-west.png"
         },
         "animations": {
+          "walkdiag": {
+            "north-east": [
+              "Idle/animations/walkdiag/north-east/frame_000.png",
+              "Idle/animations/walkdiag/north-east/frame_001.png",
+              "Idle/animations/walkdiag/north-east/frame_002.png",
+              "Idle/animations/walkdiag/north-east/frame_003.png",
+              "Idle/animations/walkdiag/north-east/frame_004.png",
+              "Idle/animations/walkdiag/north-east/frame_005.png",
+              "Idle/animations/walkdiag/north-east/frame_006.png",
+              "Idle/animations/walkdiag/north-east/frame_007.png"
+            ],
+            "south-east": [
+              "Idle/animations/walkdiag/south-east/frame_000.png",
+              "Idle/animations/walkdiag/south-east/frame_001.png",
+              "Idle/animations/walkdiag/south-east/frame_002.png",
+              "Idle/animations/walkdiag/south-east/frame_003.png",
+              "Idle/animations/walkdiag/south-east/frame_004.png",
+              "Idle/animations/walkdiag/south-east/frame_005.png",
+              "Idle/animations/walkdiag/south-east/frame_006.png",
+              "Idle/animations/walkdiag/south-east/frame_007.png"
+            ]
+          },
           "quirk": {
             "south": [
               "Idle/animations/quirk/south/frame_000.png",
@@ -82,5 +104,5 @@
     }
   ],
   "export_version": "3.1",
-  "export_date": "2026-11-14T12:45:38.551523"
+  "export_date": "2026-11-14T19:13:33.963769"
 }
