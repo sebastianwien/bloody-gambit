@@ -102,11 +102,17 @@ export function renderBoard(): HTMLCanvasElement {
         if ((f + r) % 2 === 1 && edge < px * 4 && rnd() < 0.18) col = mix(col, moss, 0.45);
         put(i, col, noise);
       } else if (p.x >= o0 && p.x < o1 && p.y >= o0 && p.y < o1) {
-        const along = p.x < 0 || p.x >= 8 ? p.y : p.x;
-        const blk = Math.floor(along * 1.5);
-        let col = rimCol[((blk % 2) + 2) % 2];
+        // Ein Randstein je Feld, Fugen genau an den Feldgrenzen; Ecken sind eigene Steine
+        const sideX = p.x < 0 || p.x >= 8;
+        const sideY = p.y < 0 || p.y >= 8;
+        const along = sideX && !sideY ? p.y : p.x;
+        const blk = sideX && sideY ? 100 + (p.x < 0 ? 0 : 1) + (p.y < 0 ? 0 : 2) : Math.floor(along) + (sideX ? 20 : 0) + (p.x >= 8 || p.y >= 8 ? 40 : 0);
+        const shade = ((blk * 2654435761) >>> 0) % 3;
+        let col = mix(rimCol[0], rimCol[1], 0.25 + shade * 0.25);
         const inner = Math.min(Math.abs(p.x), Math.abs(p.y), Math.abs(8 - p.x), Math.abs(8 - p.y));
-        if (Math.abs(along * 1.5 - Math.round(along * 1.5)) < px * 1.5 || inner < px * 1.2) col = grout;
+        const joint = !(sideX && sideY) && Math.abs(along - Math.round(along)) < px * 1.2;
+        const cornerJoint = (sideX || sideY) && (Math.abs(p.x) < px * 1.2 || Math.abs(p.x - 8) < px * 1.2 || Math.abs(p.y) < px * 1.2 || Math.abs(p.y - 8) < px * 1.2);
+        if (joint || cornerJoint || inner < px * 1.2) col = grout;
         // Vorderkante des Rands leicht heller (Kante im Licht)
         if (p.y < o0 + px * 2) col = mix(col, hi, 0.15);
         put(i, col, noise);
@@ -122,13 +128,22 @@ export function drawBoardLabels(g: CanvasRenderingContext2D, flipped: boolean) {
   g.save();
   g.font = '10px Wolfsrune';
   g.textAlign = 'center';
-  g.fillStyle = PAL.stone5;
+  g.textBaseline = 'middle';
+  const put = (t: string, x: number, y: number) => {
+    // Pixelgenau: Mitte auf ganze Pixel, dunkler Schatten unten rechts
+    const px = Math.round(x);
+    const py = Math.round(y);
+    g.fillStyle = PAL.ink;
+    g.fillText(t, px + 1, py + 1);
+    g.fillStyle = PAL.stone6;
+    g.fillText(t, px, py);
+  };
   for (let i = 0; i < 8; i++) {
     const fi = flipped ? 7 - i : i;
     const pf = boardToScreen(i + 0.5, -RIM / 2, false);
-    g.fillText(String.fromCharCode(97 + fi), Math.round(pf.x), Math.round(pf.y + 4));
+    put(String.fromCharCode(97 + fi), pf.x, pf.y);
     const pr = boardToScreen(-RIM / 2, i + 0.5, false);
-    g.fillText(String(fi + 1), Math.round(pr.x), Math.round(pr.y + 4));
+    put(String(fi + 1), pr.x, pr.y);
   }
   g.restore();
 }
