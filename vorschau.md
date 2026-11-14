@@ -74,7 +74,7 @@ Schnellstarts für Tests und Vorführung: `?start=local`, `?start=ai&level=1&col
 
 **10 Finisher und Sonderszenen.** Eigene Finisher für die häufigsten Paarungen (Bauer gegen Bauer, Springer, Läufer, Dame, König und Turm gegen Bauer, Bauer gegen Springer, Springer gegen Springer), Angriffsbilder je Figur, Schach-Reaktion des Königs, Matt mit stürzendem König und rollender Krone, Patt mit Ratlosigkeit, Siegesjubel.
 
-**11 Abschluss.** Siehe fortschritt.md.
+**11 Abschluss.** Alle Tests grün (40 Vitest, 6 Playwright inklusive kompletter KI- und Online-Partie), keine Konsolenfehler, Titel nach rund 0,2 s, statische Seite in `dist/`, Server läuft per Docker. Nicht geprüft: echter Klang (nur ohne Lautsprecher getestet), Safari und Firefox, Server hinter einem Proxy mit wss.
 
 ## Offene Ideen
 

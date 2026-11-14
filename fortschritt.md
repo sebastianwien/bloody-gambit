@@ -5,19 +5,21 @@ Einzige Wahrheit über den Stand. Nach einer Kontext-Zusammenfassung zuerst hier
 ## Stand
 
 - Start: 14.11.2026 12:35
-- Aktuelle Phase: 10 (eigene Finisher, Sonderszenen), danach 11 (Abschluss)
-- Offene PixelLab-Aufträge: Ruhe-Eigenheiten Turm, Springer; Angriffe je Figur (Ost-Richtung, 6 Bilder)
+- Ende: 14.11.2026, alle 11 Phasen abgeschlossen
+- Offene PixelLab-Aufträge: keine
 
 ## Erledigte Phasen
 
 - **Phase 1 Fundament** (4e3d19c): Steinbrett, Regeln über chess.js (shared/rules.ts), Klickauswahl, Umwandlungsdialog, lokal zu zweit, Zug zurück.
 - **Phase 2 KI** (9496ba5): eigene 0x88-Engine (src/ai/engine.ts), Alpha-Beta, Ruhesuche, Transpositionstabelle, iterative Vertiefung, Eröffnungsbuch (19 Linien), Web Worker, Stufen Knappe/Ritter/Hochmeister, alle unter 2 s. Perft gegen Referenzwerte und chess.js geprüft. Dazu Umbau auf Spielerperspektive.
-- **Phase 3 Stil und Figuren** (a4f0543 + folgende): Stil-Blatt docs/stilblatt.md, 6 Figuren aus PixelLab mit 8 Richtungen, Atlas (tools/pack_atlas.py -> public/assets/pieces.*), Schwarz per Palettentausch im Code (toBlackArmy). Ruhe-Eigenheiten: Bauer, König, Dame fertig, Läufer läuft.
-- **Phase 4 Bewegung**: Laufen in alle Richtungen über die 8 Drehungen mit Schaukeln im Code, Springer springt im Bogen. Eigene Laufbilder noch nicht (Budget, siehe Entscheidungen).
+- **Phase 3 Stil und Figuren** (a4f0543 + folgende): Stil-Blatt docs/stilblatt.md, 6 Figuren aus PixelLab mit 8 Richtungen, Atlas (tools/pack_atlas.py -> public/assets/pieces.*), Schwarz per Palettentausch im Code (toBlackArmy). Ruhe-Eigenheiten für alle sechs Figuren (Blick zum Betrachter); die eigene Armee schaut sich in Ruhe per Drehung um.
+- **Phase 4 Bewegung**: Laufen in alle Richtungen über die 8 Drehungen, Springer springt im Bogen. Eigene Laufbilder (v3, 4 Bilder): Bauer n/s, Läufer ne/se, Dame n/s/e, König n/s/e; Westrichtungen gespiegelt; übrige Richtungen schaukeln im Code. Turm gleitet mit Staub (kein lebender Turm).
 - **Phase 5 Kampf-Baukasten** (a4f0543): src/battle/kit.ts (Daten, 30 Paarungen, 6 allgemeine Finisher, 2-3 Tod-Varianten je Opfer), src/battle/runner.ts (Anlauf, Kamera-Zoom, Abdunkeln, Treffer, Geschosse, Tode: umfallen, Kopf ab, zweigeteilt, zerplatzen, plattgedrückt, verbrennen, Pfeile, einstürzen), Blut als Partikel, Blutflecken bleiben, Wackeln, Trefferblitz, Klick spult vor.
 - **Phase 6 Menüs** (a4f0543): Laden, Titel mit Kamerafahrt, Hauptmenü, Einzelspieler (Farbe, Stufe), Einstellungen (Musik, Effekte, Kämpfe immer/nur neue/aus, Blut, KI-Stufe, Zugvorschau; localStorage), Mitwirkende mit Lizenzen, HUD (Spieler, geschlagene Figuren als Brustbilder, Zugliste deutsch), Pause, Spielende mit Revanche, Autosave und Fortsetzen.
 - **Phase 7 Online** (f7d219d): server/src (ws, autoritativ mit chess.js, Uhr mit Schonzeit nach Zügen, 60 s Wiederverbinden, Remis, Aufgeben, Revanche mit Farbtausch), Dockerfile, Client src/online.ts + src/net/client.ts.
 - **Phase 8 Umgebung** (e2155ba): Hintergrund per gpt-image-2 (bilder/background_v1.png -> public/assets/background.png, 56 Farben), Wolken, Doppelblitz, 4 Feuerschalen mit Flammen, Glut und Lichtschein, Nebelbänder, Regen mit Spritzern, Krähen, Ratten, Nachttönung und Vignette.
+- **Phase 10 Finisher und Sonderszenen** (5cdbe4f, a0c9dd7): eigene Finisher für pp (Stocherduell mit Gegenstoß, fliegendem Helm, Sternchen), np (Huftritt), bp (Kopfnuss), qp (Wegfegen), kp (Königlicher Tritt), rp (Meisterschuss), pn (Speer gegen Ross), nn (Tjost). Angriffsbilder aller sechs Figuren (Seitenansicht, gespiegelt), Kämpfer stellen sich seitlich auf. Schach: König zuckt, rotes Ausrufezeichen, Fanfare. Matt: König stürzt, Krone rollt. Patt: Fragezeichen, Schulterzucken. Sieg: Jubelhüpfen, Niederlage: hängende Köpfe. Umwandlung: Lichtblitz und Funken.
+- **Phase 11 Abschluss**: Playwright: komplette Partie gegen KI, komplette Online-Partie mit zwei Browsern (Matt, Revanche, Wiederverbinden, Aufgeben), Menüs, Ladezeit. Konsolenfehler in allen Tests null. Ladezeit bis Titel 156 ms (Produktions-Build lokal). npm run build erzeugt dist/ (1,3 MB). Server-Image per Docker gebaut und /health geprüft. Spielertest: Titel lesbarer gemacht, Statuszeile im Kampf leer, Fehlklick-Ton, Schach-Einblendung klickdurchlässig, Bilder laden ohne decode().
 - **Phase 9 Ton** (e2155ba): eigener WebAudio-Sequencer (src/audio/music.ts: Menü, Partie, Spannung, Sieg, Niederlage; Bordun, Laute, Chor, Flöte, Glocke, Trommeln, Hall), 40 prozedurale Effekte (src/audio/sfx.ts), Regen und Fackelknistern als Umgebung.
 
 ## Budget PixelLab
@@ -31,8 +33,12 @@ Startwert: 40 Generierungen (Trial). Abbruchgrenze: unter 4.
 | 6 Figuren (v3 mit Referenz, Springer standard) | 6 |
 | Springer Versuch 1 (verworfen, ohne Pferd) | 1 |
 | Ruhe Bauer (8 Bilder, 92er Leinwand) | 2 |
-| Ruhe König, Dame, Läufer (4 Bilder) | 3 |
-| **Summe** | **13,1** |
+| Ruhe König, Dame, Läufer, Springer, Turm (4 Bilder) | 5 |
+| Angriffe Bauer, König, Dame, Läufer, Turm, Springer | 6 |
+| Laufen Vorlage Bauer n/s (n verworfen: falscher Wappenrock) | 2 |
+| Laufen v3: Bauer n, Dame n/s/e, König n/s/e, Läufer ne/se | 9 |
+| Turm-Laufen (abgebrochen, nicht berechnet) | 0 |
+| **Summe laut PixelLab** | **32,1 von 40, Rest 7,9** |
 
 OpenAI (gpt-image-2): 2 Bilder (Figurenaufstellung, Hintergrund), ca. 0,15 $.
 
@@ -50,6 +56,9 @@ OpenAI (gpt-image-2): 2 Bilder (Figurenaufstellung, Hintergrund), ca. 0,15 $.
 - **Server in TypeScript ohne Build:** Node führt .ts per Type-Stripping aus (keine Parameter-Properties im Server-Code).
 - **Kampf aus:** kurzer Schlag mit Blutspritzer statt ganzer Szene.
 - **Schach-Einblendung** darf keine Klicks fangen (CSS mit ID-Selektor, war ein Fehler).
+- **Turm bewegt sich ohne Eigenleben:** hüpfender Turm wäre zu nah am verbotenen lebenden Steinturm; er gleitet mit Staub, nur der Schütze oben ist lebendig.
+- **Farbangleich:** Animationsbilder werden beim Packen auf die Palette der Ruhebilder derselben Figur gezogen (kein Farbflackern beim Wechsel).
+- **Budget-Verteilung abweichend vom Auftrag:** Die Trial (40) reichte nicht für eine Viertel-Aufteilung mit 8-Bild-Animationen; Umgebung kam deshalb komplett aus OpenAI und Code (0 Generierungen), der Rest ging in Angriffe und Laufen. Abbruchgrenze (unter 4) nie erreicht.
 
 ## Verworfene Versuche
 
@@ -57,3 +66,4 @@ OpenAI (gpt-image-2): 2 Bilder (Figurenaufstellung, Hintergrund), ca. 0,15 $.
 - unzoom_image auf der gpt-Aufstellung: kein Raster erkannt.
 - Isometrisches Rautenbrett: von Sebastian abgelehnt.
 - Springer v3 mit Referenz: Pferd verschwunden.
+- Bauer Laufen Richtung Norden per Vorlage (template walking): Rückansicht mit fremdem Wappenrock; ersetzt durch v3.
