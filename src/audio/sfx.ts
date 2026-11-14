@@ -172,6 +172,77 @@ function mail(ctx: AudioContext, out: AudioNode, t: number, peak: number, n = 5)
 
 const r = (a: number, b: number) => a + Math.random() * (b - a);
 
+/** Wiehern: schriller Anstieg, dann abfallend mit Zittern (Tremolo), am Ende Schnauben. */
+function whinny(ctx: AudioContext, out: AudioNode, t: number, peak: number) {
+  const dur = 1.15;
+  const g = env(ctx, t, peak, 0.04, dur * 0.45, dur * 0.55);
+  // Zittern der Lautstärke, gegen Ende schneller
+  const trem = ctx.createGain();
+  trem.gain.value = 0.6;
+  const tl = ctx.createOscillator();
+  tl.frequency.setValueAtTime(9, t);
+  tl.frequency.linearRampToValueAtTime(16, t + dur);
+  const tg = ctx.createGain();
+  tg.gain.setValueAtTime(0.05, t);
+  tg.gain.linearRampToValueAtTime(0.4, t + 0.35);
+  tl.connect(tg).connect(trem.gain);
+  trem.connect(g).connect(out);
+  for (const det of [0, 14]) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.detune.value = det;
+    osc.frequency.setValueAtTime(430, t);
+    osc.frequency.exponentialRampToValueAtTime(1050, t + 0.13);
+    osc.frequency.setValueAtTime(1050, t + 0.22);
+    osc.frequency.exponentialRampToValueAtTime(560, t + 0.7);
+    osc.frequency.exponentialRampToValueAtTime(320, t + dur);
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 8;
+    const vg = ctx.createGain();
+    vg.gain.value = 35;
+    vib.connect(vg).connect(osc.frequency);
+    for (const [f, a] of [
+      [1050, 1.2],
+      [2300, 0.8],
+      [3500, 0.35],
+    ]) {
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = f;
+      bp.Q.value = 4;
+      const fg = ctx.createGain();
+      fg.gain.value = a;
+      osc.connect(bp).connect(fg).connect(trem);
+    }
+    osc.start(t);
+    vib.start(t);
+    osc.stop(t + dur + 0.1);
+    vib.stop(t + dur + 0.1);
+  }
+  tl.start(t);
+  tl.stop(t + dur + 0.1);
+  // Atem im Klang, dann zweimal Schnauben
+  noiseHit(ctx, out, t, { type: 'bandpass', f: 2600, q: 1, peak: peak * 0.18, a: 0.05, h: dur * 0.5, d: dur * 0.4 });
+  for (const dt of [dur + 0.08, dur + 0.26]) noiseHit(ctx, out, t + dt, { type: 'lowpass', f: 900, f2: 200, peak: peak * 1.1, a: 0.01, d: 0.16 });
+}
+
+/** Schritt in Plattenrüstung: dumpfer Stiefel, Platten schlagen nach, Kettenhemd klirrt. */
+function armorStep(ctx: AudioContext, out: AudioNode, t: number, v: number) {
+  thud(ctx, out, t, r(70, 85), 0.06 * v, 0.1);
+  noiseHit(ctx, out, t, { type: 'lowpass', f: 260, peak: 0.12 * v, d: 0.07 });
+  // Platten setzen versetzt nach (Bein, Hüfte, Schulter)
+  for (const dt of [r(0.01, 0.025), r(0.04, 0.07), r(0.08, 0.11)]) {
+    metal(ctx, out, t + dt, r(950, 1500), r(0.025, 0.045) * v, r(0.07, 0.13));
+    noiseHit(ctx, out, t + dt, { type: 'bandpass', f: r(2500, 4000), q: 2, peak: 0.05 * v, d: 0.02 });
+  }
+  mail(ctx, out, t + 0.015, 0.07 * v, 7);
+}
+
+/** Schrittgeräusch je Figur: Pferd Hufe, Turm Stein, alle anderen Rüstung. */
+export function footstepSfx(kind: string): 'hoof' | 'stone' | 'armorstep' {
+  return kind === 'n' ? 'hoof' : kind === 'r' ? 'stone' : 'armorstep';
+}
+
 export const SFX: Record<string, SfxFn> = {
   click: (c, o, t, v) => tone(c, o, t, { type: 'square', f: 900, f2: 600, peak: 0.12 * v, d: 0.05, lp: 3000 }),
   hover: (c, o, t, v) => tone(c, o, t, { type: 'square', f: 1400, peak: 0.04 * v, d: 0.02, lp: 3000 }),
@@ -187,6 +258,8 @@ export const SFX: Record<string, SfxFn> = {
     noiseHit(c, o, t, { type: 'lowpass', f: 320, peak: 0.28 * v, d: 0.08 });
     mail(c, o, t + 0.01, 0.05 * v, 3);
   },
+  armorstep: (c, o, t, v) => armorStep(c, o, t, v),
+  neigh: (c, o, t, v) => whinny(c, o, t, 0.2 * v),
   hoof: (c, o, t, v) => {
     for (const dt of [0, 0.07]) {
       noiseHit(c, o, t + dt, { type: 'bandpass', f: 900, q: 3, peak: 0.25 * v, d: 0.04 });

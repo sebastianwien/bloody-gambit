@@ -18,5 +18,7 @@ export const FAR_SCALE = 0.76;
 
 /** Kampf- und Laufanimationen laufen mit 8 Bildern pro Sekunde. */
 export const ANIM_FPS = 8;
+/** Gehen ist langsamer: 6 Bilder pro Sekunde, also drei Schritte pro Sekunde bei vier Laufbildern. */
+export const WALK_FPS = 6;
 
 export const SERVER_PORT = 8790;

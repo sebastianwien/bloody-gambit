@@ -2,6 +2,7 @@ import type { Color, GameEnd, Move, Square } from '../shared/rules.ts';
 import { END_TEXT } from '../shared/rules.ts';
 import { AiClient } from './ai/client.ts';
 import { AudioManager } from './audio/audio.ts';
+import { footstepSfx } from './audio/sfx.ts';
 import { Engine } from './ai/engine.ts';
 import { LEVEL_NAMES, type AiLevel } from './ai/levels.ts';
 import { shouldShowBattle } from './battle/kit.ts';
@@ -64,7 +65,7 @@ export class App {
     });
     this.screens.onClick = () => this.audio.sfx('click');
     const pan = (a: Actor) => (a.screen(this.stage.flipped).x - 480) / 480;
-    this.director.hooks.footstep = (a) => this.audio.sfx(a.kind === 'n' ? 'hoof' : a.kind === 'r' ? 'stone' : 'clank', pan(a), 0.7);
+    this.director.hooks.footstep = (a) => this.audio.sfx(footstepSfx(a.kind), pan(a), 0.7);
     this.director.hooks.land = (a) => this.audio.sfx('land', pan(a));
     this.battle.hooks.sfx = (n, p) => this.audio.sfx(n, p);
     this.director.hooks.promote = (a, to) => this.promoteScene(a, to);

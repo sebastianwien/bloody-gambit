@@ -64,6 +64,11 @@ export class Actor {
     this.fps = fps;
   }
 
+  /** Schrittzähler: zwei Schritte je Laufzyklus (Bild 0 und Zyklusmitte), damit der Ton zum Fuß passt. */
+  stepIndex(cycleFrames: number) {
+    return Math.floor((this.animT * this.fps) / Math.max(1, cycleFrames / 2));
+  }
+
   rest() {
     this.dir = this.restDir;
     this.bob = 0;

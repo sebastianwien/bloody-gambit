@@ -1,5 +1,6 @@
 import type { Move } from '../../shared/rules.ts';
-import { ANIM_FPS } from '../config.ts';
+import { footstepSfx } from '../audio/sfx.ts';
+import { ANIM_FPS, WALK_FPS } from '../config.ts';
 import { Actor } from '../scene/actor.ts';
 import { cutImage, opaqueRows, splitImage } from '../scene/effects.ts';
 import { boardToScreen, dirFromDelta, screenToBoard, squareToBoard } from '../scene/iso.ts';
@@ -27,6 +28,8 @@ export type SfxName =
   | 'whoosh'
   | 'clank'
   | 'hoof'
+  | 'armorstep'
+  | 'neigh'
   | 'parry'
   | 'sever'
   | 'stone'
@@ -65,6 +68,8 @@ export class BattleRunner {
   forceDeath: DeathVariant | null = null;
   /** Stumpf nach dem Abtrennen (für die Fontäne beim Verbluten). */
   private stump: { dx: number; z: number } | null = null;
+  /** Das Pferd wiehert einmal pro Kampf, beim ersten Angriff. */
+  private neighed = false;
 
   constructor(private stage: Stage) {}
 
@@ -77,12 +82,19 @@ export class BattleRunner {
     this.hooks.sfx?.(name, pan);
   }
 
+  private neigh(a: Actor) {
+    if (a.kind !== 'n' || this.neighed) return;
+    this.neighed = true;
+    this.sfx('neigh', a);
+  }
+
   private pos(a: Actor) {
     return boardToScreen(a.bx, a.by, this.stage.flipped);
   }
 
   async run(a: Actor, v: Actor, move: Move, seedExtra = 0) {
     this.stump = null;
+    this.neighed = false;
     this.ranged = false;
     this.duel = null;
     a.hold = v.hold = false;
@@ -234,18 +246,19 @@ export class BattleRunner {
     // Mit faceTo bleibt die vorher gesetzte Blickrichtung zum Gegner stehen
     if (!faceTo) a.dir = dirFromDelta(to.x - from.x, to.y - from.y);
     // Laufbilder nur, wenn Blick und Laufrichtung übereinstimmen (sonst Schaukeln, kein Rückwärts-Laufbild)
-    const own = !faceTo && this.stage.srcFor(a).frames(a.kind, a.side, 'walk', a.dir).length > 1;
-    a.play(own ? 'walk' : 'idle', true);
+    const n = this.stage.srcFor(a).frames(a.kind, a.side, 'walk', a.dir).length;
+    const own = !faceTo && n > 1;
+    a.play(own ? 'walk' : 'idle', true, a.kind === 'n' ? ANIM_FPS : WALK_FPS);
     let lastStep = -1;
-    await this.t.run(Math.min(1.6, 0.25 + d * 0.32) / speed, (k) => {
+    await this.t.run(Math.min(2.4, 0.35 + d * 0.6) / speed, (k) => {
       const e = ease.inOut(k);
       a.bx = sx + (tx - sx) * e;
       a.by = sy + (ty - sy) * e;
       if (!own && a.kind !== 'r') a.bob = k < 1 ? a.animT * 4 : 0;
-      const step = Math.floor(a.animT * 4);
+      const step = a.stepIndex(own ? n : 4);
       if (step !== lastStep && k < 1) {
         lastStep = step;
-        if (step % 2 === 0) this.sfx(a.kind === 'n' ? 'hoof' : a.kind === 'r' ? 'stone' : 'clank', a);
+        this.sfx(footstepSfx(a.kind), a);
       }
     });
     a.bob = 0;
@@ -353,6 +366,7 @@ export class BattleRunner {
         break;
       }
       case 'rear': {
+        this.neigh(a);
         const rearFrames = st.srcFor(a).frames(a.kind, a.side, 'attack', a.dir);
         if (rearFrames.length > 1) {
           // Gezeichnetes Aufbäumen, Tritt am Ende
@@ -466,6 +480,7 @@ export class BattleRunner {
         const who = s.who === 'a' ? a : v;
         const frames = st.srcFor(who).frames(who.kind, who.side, s.anim, who.dir);
         const dir = this.toward(who, s.who === 'a' ? v : a);
+        if (s.who === 'a') this.neigh(who);
         if (frames.length > 1) {
           this.sfx(who.kind === 'n' ? 'jump' : 'swing', who);
           who.play(s.anim, false);
@@ -550,6 +565,7 @@ export class BattleRunner {
       case 'leap': {
         const sx = a.bx;
         const sy = a.by;
+        this.neigh(a);
         this.sfx('jump', a);
         a.play('idle', true);
         await this.t.run(0.5, (k) => {

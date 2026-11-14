@@ -1,4 +1,5 @@
 import type { Move, PieceSymbol, Square } from '../../shared/rules.ts';
+import { WALK_FPS } from '../config.ts';
 import { Actor } from './actor.ts';
 import { boardToScreen, dirFromDelta, squareToBoard } from './iso.ts';
 import type { Stage } from './stage.ts';
@@ -52,7 +53,8 @@ export class Director {
   }
 
   walkDuration(dist: number): number {
-    return Math.min(2.2, 0.35 + dist * 0.34);
+    // Etwa 1,4 Felder pro Sekunde: Schrittlänge passt zu drei Schritten pro Sekunde
+    return Math.min(3.6, 0.4 + dist * 0.7);
   }
 
   /** Läuft geradlinig zu einem Brettpunkt. */
@@ -62,16 +64,18 @@ export class Director {
     const dist = Math.hypot(tx - sx, ty - sy);
     if (dist < 0.01) return;
     this.face(a, tx, ty);
-    a.play('walk', true);
+    const n = this.stage.sprites.frames(a.kind, a.side, 'walk', a.dir).length;
+    const own = n > 1;
+    // Pferd galoppiert im vollen Takt, alle anderen gehen gemessen
+    a.play('walk', true, a.kind === 'n' ? undefined : WALK_FPS);
     let lastStep = -1;
-    const own = this.stage.sprites.frames(a.kind, a.side, 'walk', a.dir).length > 1;
     await this.stage.tweens.run(dur ?? this.walkDuration(dist), (t) => {
       const e = ease.inOut(t);
       a.bx = sx + (tx - sx) * e;
       a.by = sy + (ty - sy) * e;
       // Turm gleitet (kein lebender Turm), alle anderen schaukeln ohne eigene Laufbilder
       if (!own && a.kind !== 'r') a.bob = t < 1 ? a.animT * 4 : 0;
-      const step = Math.floor(a.animT * 4);
+      const step = a.stepIndex(own ? n : 4);
       if (step !== lastStep && t < 1) {
         lastStep = step;
         this.hooks.footstep?.(a);
