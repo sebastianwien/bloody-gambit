@@ -36,6 +36,8 @@ export class Actor {
   restDir: Dir8 = 's';
   /** Laufen ohne eigene Laufbilder: Schaukeln im Code. */
   bob = 0;
+  /** Umschauen im Ruhezustand: Restzeit der Kopfdrehung. */
+  lookT = 0;
 
   constructor(kind: PieceSymbol, side: Color, sq: Square) {
     this.kind = kind;

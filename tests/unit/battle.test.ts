@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allPairings, DEATHS, estimateDuration, planBattle, shouldShowBattle } from '../../src/battle/kit.ts';
+import { allPairings, CUSTOM, DEATHS, estimateDuration, planBattle, shouldShowBattle } from '../../src/battle/kit.ts';
 
 describe('Kampf-Baukasten', () => {
   it('30 Paarungen, König nie Opfer', () => {
@@ -15,7 +15,7 @@ describe('Kampf-Baukasten', () => {
         const plan = planBattle(a, v, seed);
         const deaths = plan.steps.filter((s) => s.t === 'death');
         expect(deaths).toHaveLength(1);
-        expect(DEATHS[v]).toContain(plan.death);
+        if (!CUSTOM[a + v]) expect(DEATHS[v]).toContain(plan.death);
         expect(plan.steps.some((s) => s.t === 'hit')).toBe(true);
         expect(plan.steps[0].t).toBe('approach');
         // Kampf kurz genug, dass er nicht nervt
@@ -32,6 +32,12 @@ describe('Kampf-Baukasten', () => {
       for (const a of ['p', 'n', 'b', 'r', 'q', 'k'] as const) for (let s = 0; s < 50; s++) seen.add(planBattle(a, v as 'p', s).death);
       for (const d of list) expect(seen, v + ' ' + d).toContain(d);
     }
+  });
+
+  it('die häufigsten Paarungen haben eigene Finisher', () => {
+    for (const k of ['pp', 'np', 'bp', 'qp', 'kp', 'rp', 'pn', 'nn']) expect(CUSTOM[k], k).toBeDefined();
+    expect(planBattle('p', 'p', 1).finisher).toBe('stocherduell');
+    expect(planBattle('q', 'p', 1).death).toBe('launch');
   });
 
   it('ist reproduzierbar über den Seed', () => {

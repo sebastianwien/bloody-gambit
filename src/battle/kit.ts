@@ -17,7 +17,8 @@ export type DeathVariant =
   | 'squash' // plattgedrückt
   | 'burn' // verkohlt und zerfällt zu Asche
   | 'pincushion' // mit Pfeilen gespickt, sinkt zusammen
-  | 'crumble'; // Turm: stürzt ein
+  | 'crumble' // Turm: stürzt ein
+  | 'launch'; // fliegt im hohen Bogen davon (nur eigene Finisher)
 
 /** Welche Tode jedes Opfer sterben kann (2 bis 3). */
 export const DEATHS: Record<Victim, DeathVariant[]> = {
@@ -49,10 +50,20 @@ export type Step =
   /** Kleine Geste nach dem Kampf. */
   | { t: 'gag'; gag: Gag }
   /** Angreifer geht auf das Zielfeld. */
-  | { t: 'finish' };
+  | { t: 'finish' }
+  /** Opfer wehrt einen Stoß ab (Funken, kein Blut). */
+  | { t: 'parry' }
+  /** Opfer schlägt zuerst zurück (Gegenangriff, der abprallt). */
+  | { t: 'counter' }
+  /** Pferd steigt und tritt zu. */
+  | { t: 'rear' }
+  /** Opfer taumelt mit Sternchen über dem Kopf. */
+  | { t: 'dizzy'; s: number }
+  /** Helm fliegt dem Opfer vom Kopf. */
+  | { t: 'helmet' };
 
 export type HitSound = 'stab' | 'slash' | 'blunt' | 'magic' | 'arrow' | 'trample';
-export type Gag = 'wipe' | 'shrug' | 'bless' | 'kickHelmet' | 'bow' | 'none';
+export type Gag = 'wipe' | 'shrug' | 'bless' | 'kickHelmet' | 'bow' | 'cheer' | 'none';
 
 export interface BattlePlan {
   attacker: PieceSymbol;
@@ -149,7 +160,124 @@ const GENERIC: Record<PieceSymbol, Finisher> = {
 };
 
 /** Eigene Finisher für bestimmte Paarungen (Phase 10), Schlüssel "<angreifer><opfer>". */
-export const CUSTOM: Partial<Record<string, Finisher>> = {};
+export const CUSTOM: Partial<Record<string, Finisher>> = {
+  // Bauer schlägt Bauer: Stochern, Gegenstoß prallt ab, Helm fliegt, dann der Stich
+  pp: {
+    id: 'stocherduell',
+    deaths: ['fall', 'behead'],
+    build: (death) => [
+      { t: 'approach', stop: 0.8 },
+      { t: 'face' },
+      { t: 'counter' },
+      { t: 'parry' },
+      { t: 'anim', who: 'a', anim: 'attack', lunge: 6 },
+      { t: 'helmet' },
+      { t: 'hit', blood: 6, shake: 2, sound: 'blunt' },
+      { t: 'dizzy', s: 0.35 },
+      { t: 'lunge', px: 10, dur: 0.12 },
+      { t: 'hit', blood: 22, shake: 4, sound: 'stab' },
+      { t: 'death', variant: death },
+      { t: 'gag', gag: 'kickHelmet' },
+    ],
+  },
+  // Springer schlägt Bauer: Pferd steigt und trampelt
+  np: {
+    id: 'huftritt',
+    deaths: ['squash', 'launch', 'gib'],
+    build: (death) => [
+      { t: 'approach', stop: 0.75 },
+      { t: 'face' },
+      { t: 'rear' },
+      { t: 'hit', blood: 26, shake: 7, sound: 'trample' },
+      { t: 'death', variant: death },
+      { t: 'gag', gag: 'shrug' },
+    ],
+  },
+  // Läufer schlägt Bauer: Kopfnuss mit dem Stab, Sternchen, dann heiliges Feuer
+  bp: {
+    id: 'kopfnuss',
+    deaths: ['burn', 'fall'],
+    build: (death) => [
+      { t: 'approach', stop: 0.75 },
+      { t: 'face' },
+      { t: 'anim', who: 'a', anim: 'attack', lunge: 5 },
+      { t: 'hit', blood: 4, shake: 3, sound: 'blunt' },
+      { t: 'dizzy', s: 0.9 },
+      { t: 'projectile', kind: 'bolt', count: 1 },
+      { t: 'hit', blood: 6, shake: 5, sound: 'magic' },
+      { t: 'death', variant: death },
+      { t: 'gag', gag: 'bless' },
+    ],
+  },
+  // Dame schlägt Bauer: ein Schwung, der Bauer fliegt davon
+  qp: {
+    id: 'wegfegen',
+    deaths: ['launch'],
+    build: (death) => [
+      { t: 'approach', stop: 0.8 },
+      { t: 'face' },
+      { t: 'anim', who: 'a', anim: 'attack', lunge: 4 },
+      { t: 'hit', blood: 12, shake: 5, sound: 'blunt' },
+      { t: 'death', variant: death },
+      { t: 'gag', gag: 'bow' },
+    ],
+  },
+  // König schlägt Bauer: Königlicher Tritt
+  kp: {
+    id: 'koeniglicher-tritt',
+    deaths: ['launch', 'split'],
+    build: (death) => [
+      { t: 'approach', stop: 0.7 },
+      { t: 'face' },
+      { t: 'wait', s: 0.3 },
+      { t: 'lunge', px: 9, dur: 0.12 },
+      { t: 'hit', blood: 14, shake: 6, sound: 'blunt' },
+      { t: 'death', variant: death },
+      { t: 'gag', gag: 'wipe' },
+    ],
+  },
+  // Turm schlägt Bauer: ein einziger Pfeil in den Helm
+  rp: {
+    id: 'meisterschuss',
+    deaths: ['fall'],
+    build: (death) => [
+      { t: 'approach', stop: 2.4 },
+      { t: 'face' },
+      { t: 'anim', who: 'a', anim: 'attack' },
+      { t: 'projectile', kind: 'arrow', count: 1 },
+      { t: 'hit', blood: 6, shake: 2, sound: 'arrow' },
+      { t: 'dizzy', s: 0.8 },
+      { t: 'death', variant: death },
+      { t: 'gag', gag: 'cheer' },
+    ],
+  },
+  // Bauer schlägt Springer: Speer ins Pferd, Reiter stürzt
+  pn: {
+    id: 'speer-gegen-ross',
+    deaths: ['fall', 'split'],
+    build: (death) => [
+      { t: 'approach', stop: 0.9 },
+      { t: 'face' },
+      { t: 'counter' },
+      { t: 'anim', who: 'a', anim: 'attack', lunge: 8 },
+      { t: 'hit', blood: 24, shake: 5, sound: 'stab' },
+      { t: 'death', variant: death },
+      { t: 'gag', gag: 'cheer' },
+    ],
+  },
+  // Springer schlägt Springer: Lanzenstechen
+  nn: {
+    id: 'tjost',
+    deaths: ['fall', 'gib'],
+    build: (death) => [
+      { t: 'approach', stop: 1.6 },
+      { t: 'face' },
+      { t: 'leap', height: 18 },
+      { t: 'hit', blood: 28, shake: 7, sound: 'slash' },
+      { t: 'death', variant: death },
+    ],
+  },
+};
 
 export function registerCustom(attacker: PieceSymbol, victim: Victim, f: Finisher) {
   CUSTOM[attacker + victim] = f;
@@ -170,8 +298,8 @@ export function planBattle(attacker: PieceSymbol, victim: PieceSymbol, seed: num
   const v = victim as Victim;
   const rnd = mulberry32(seed);
   const f = CUSTOM[attacker + v] ?? GENERIC[attacker];
-  let pool = f.deaths.filter((d) => DEATHS[v].includes(d));
-  // Turm kann nur einstürzen oder zerplatzen; andere Opfer nie einstürzen
+  // Eigene Finisher dürfen eigene Tode haben (launch), allgemeine nehmen die Tode des Opfers
+  let pool = CUSTOM[attacker + v] ? f.deaths.filter((d) => d !== 'crumble' || v === 'r') : f.deaths.filter((d) => DEATHS[v].includes(d));
   if (!pool.length) pool = DEATHS[v];
   const death = pool[Math.floor(rnd() * pool.length)];
   return { attacker, victim: v, finisher: f.id, death, steps: f.build(death) };
@@ -219,6 +347,15 @@ export function estimateDuration(plan: BattlePlan): number {
         break;
       case 'gag':
         s += 0.6;
+        break;
+      case 'counter':
+      case 'parry':
+      case 'rear':
+      case 'helmet':
+        s += 0.45;
+        break;
+      case 'dizzy':
+        s += st.s;
         break;
       default:
         break;

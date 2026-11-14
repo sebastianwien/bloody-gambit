@@ -11,6 +11,6 @@ y0 = 100
 crop = im.crop((0, y0, W, y0 + int(W * 9 / 16)))
 small = crop.resize((960, 540), Image.LANCZOS)
 small = ImageEnhance.Contrast(small).enhance(1.08)
-q = small.quantize(colors=56, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).convert('RGB')
+q = small.quantize(colors=56, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
 q.save(out, optimize=True)
 print('ok', q.size)

@@ -303,9 +303,10 @@ export class OnlineApp extends App {
     this.screens.hudStatus(`${r.title} - ${END_TEXT[end.reason]}`);
     this.mode = 'over';
     this.endSound(r.good);
+    this.scenes.end(end);
     setTimeout(() => {
       if (this.game === g && this.room) this.refreshOver(this.room);
-    }, 900);
+    }, end.reason === 'checkmate' ? 2400 : 1400);
   }
 
   private refreshOver(s: RoomState) {

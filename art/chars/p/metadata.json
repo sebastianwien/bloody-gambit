@@ -27,10 +27,34 @@
           "west": "Idle/rotations/west.png",
           "south-west": "Idle/rotations/south-west.png"
         },
-        "animations": {}
+        "animations": {
+          "quirk": {
+            "south": [
+              "Idle/animations/quirk/south/frame_000.png",
+              "Idle/animations/quirk/south/frame_001.png",
+              "Idle/animations/quirk/south/frame_002.png",
+              "Idle/animations/quirk/south/frame_003.png",
+              "Idle/animations/quirk/south/frame_004.png",
+              "Idle/animations/quirk/south/frame_005.png",
+              "Idle/animations/quirk/south/frame_006.png",
+              "Idle/animations/quirk/south/frame_007.png",
+              "Idle/animations/quirk/south/frame_008.png"
+            ]
+          },
+          "attack": {
+            "east": [
+              "Idle/animations/attack/east/frame_000.png",
+              "Idle/animations/attack/east/frame_001.png",
+              "Idle/animations/attack/east/frame_002.png",
+              "Idle/animations/attack/east/frame_003.png",
+              "Idle/animations/attack/east/frame_004.png",
+              "Idle/animations/attack/east/frame_005.png"
+            ]
+          }
+        }
       }
     }
   ],
   "export_version": "3.1",
-  "export_date": "2026-11-14T12:03:38.623550"
+  "export_date": "2026-11-14T12:36:43.915869"
 }

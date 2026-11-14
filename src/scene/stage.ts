@@ -66,12 +66,22 @@ export class Stage {
     this.tweens.update(dt);
     for (const a of this.actors) {
       a.animT += dt;
-      if (a.anim === 'idle' && a.loop) {
+      if (a.lookT > 0) {
+        a.lookT -= dt;
+        if (a.lookT <= 0 && a.anim === 'idle') a.dir = a.restDir;
+      }
+      if (a.anim === 'idle' && a.loop && a.dir === a.restDir && !a.override) {
         a.quirkIn -= dt;
         if (a.quirkIn <= 0) {
           a.quirkIn = 8 + Math.random() * 18;
           if (this.sprites.frames(a.kind, a.side, 'quirk', a.dir).length > 1) {
             a.play('quirk', false);
+          } else {
+            // Ohne eigene Bilder: kurz zur Seite schauen
+            const side = Math.random() < 0.5 ? 'e' : 'w';
+            const d = a.restDir === 'n' ? (side === 'e' ? 'ne' : 'nw') : a.restDir === 's' ? (side === 'e' ? 'se' : 'sw') : a.restDir;
+            a.dir = d;
+            a.lookT = 0.8 + Math.random() * 1.2;
           }
         }
       } else if (a.anim === 'quirk' && a.animT * a.fps >= this.sprites.frames(a.kind, a.side, 'quirk', a.dir).length) {

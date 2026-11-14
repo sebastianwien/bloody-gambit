@@ -1,5 +1,6 @@
 import { VIEW_H, VIEW_W } from '../config.ts';
 import { mulberry32 } from '../util/random.ts';
+import { loadImage } from '../util/image.ts';
 import { boardToScreen } from './iso.ts';
 import { PAL } from './palette.ts';
 import { ctx2d, makeCanvas } from './sprites.ts';
@@ -18,17 +19,16 @@ export interface EnvHooks {
 
 export class BackgroundLayer implements Layer {
   img: HTMLImageElement | null = null;
+  failed = false;
   constructor(url: string) {
-    const i = new Image();
-    i.src = url;
-    i.decode().then(
-      () => (this.img = i),
-      () => {},
+    loadImage(url).then(
+      (i) => (this.img = i),
+      () => (this.failed = true),
     );
   }
   ready(): Promise<void> {
     return new Promise((res) => {
-      const check = () => (this.img ? res() : setTimeout(check, 30));
+      const check = () => (this.img || this.failed ? res() : setTimeout(check, 30));
       check();
     });
   }

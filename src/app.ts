@@ -17,6 +17,7 @@ import { PlaceholderSprites } from './scene/placeholderSprites.ts';
 import type { SpriteSource } from './scene/sprites.ts';
 import { Stage } from './scene/stage.ts';
 import { setupEnvironment } from './scene/environment.ts';
+import { Scenes } from './scene/scenes.ts';
 import { choosePromotion } from './ui/promotion.ts';
 import { Screens } from './ui/screens.ts';
 import { fitViewport, toLogical } from './ui/viewport.ts';
@@ -38,6 +39,7 @@ export class App {
   mode: Mode = 'loading';
   env: ReturnType<typeof setupEnvironment>;
   audio = new AudioManager();
+  scenes: Scenes;
   /** Letzte Klicks (für Tests). */
   clickLog: string[] = [];
   protected seen: Set<string>;
@@ -66,6 +68,8 @@ export class App {
     this.director.hooks.land = (a) => this.audio.sfx('land', pan(a));
     this.battle.hooks.sfx = (n, p) => this.audio.sfx(n, p);
     this.director.hooks.promote = (a, to) => this.promoteScene(a, to);
+    this.scenes = new Scenes(this.stage);
+    this.scenes.sfx = (n) => this.audio.sfx(n);
     this.applySettings();
     this.bindInput();
   }
@@ -202,6 +206,10 @@ export class App {
       ended: (end) => this.onEnded(end),
       choosePromotion: (c) => choosePromotion(this.ui, c, this.sprites, () => this.screens.onClick()),
       selected: (sq) => sq && this.audio.sfx('select', 0, 0.8),
+      animating: (on) => {
+        if (on) this.screens.hudStatus('');
+      },
+      denied: () => this.audio.sfx('deny', 0, 0.6),
     };
     this.game = game;
     this.mode = 'game';
@@ -249,6 +257,7 @@ export class App {
     if (g.rules.inCheck() && !g.rules.end()) {
       this.screens.banner('Schach!', 'check');
       this.audio.sfx('check');
+      this.scenes.check(g.rules.turn());
     }
     if (_m.isKingsideCastle() || _m.isQueensideCastle()) this.audio.sfx('castle');
     if (g.setup.mode !== 'online') saveGame({ setup: { ...g.setup, moves: undefined }, moves: g.historyUci(), savedAt: Date.now() });
@@ -272,6 +281,7 @@ export class App {
     this.screens.hudStatus(`${r.title} - ${END_TEXT[end.reason]}`, false);
     this.mode = 'over';
     this.endSound(r.good);
+    this.scenes.end(end);
     const setup = g.setup;
     setTimeout(() => {
       if (this.game !== g) return;
@@ -287,7 +297,7 @@ export class App {
         menu: () => this.showMenu(),
         view: () => this.screens.clear(),
       });
-    }, 900);
+    }, end.reason === 'checkmate' ? 2400 : 1400);
   }
 
   /** Klang und Musik zum Spielende. */

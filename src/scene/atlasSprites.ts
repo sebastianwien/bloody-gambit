@@ -1,5 +1,6 @@
 import type { Color, PieceSymbol } from '../../shared/rules.ts';
 import type { Dir8 } from './iso.ts';
+import { loadImage } from '../util/image.ts';
 import { ctx2d, makeCanvas, mirrorFrame, type AnimName, type Frame, type SpriteSource } from './sprites.ts';
 
 type Rect = [number, number, number, number, number, number];
@@ -68,9 +69,7 @@ export class AtlasSprites implements SpriteSource {
     try {
       const json = (await (await fetch(url + '.json')).json()) as AtlasJson;
       onProgress?.(0.5);
-      const img = new Image();
-      img.src = url + '.png';
-      await img.decode();
+      const img = await loadImage(url + '.png');
       onProgress?.(1);
       return new AtlasSprites(fallback, img, json);
     } catch {

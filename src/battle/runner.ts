@@ -185,12 +185,103 @@ export class BattleRunner {
         }
         break;
       }
-      case 'face':
+      case 'face': {
         this.face(a, v);
         this.face(v, a);
+        // Mit Angriffsbildern (Seitenansicht) stellen sich beide seitlich auf
+        if (st.sprites.frames(a.kind, a.side, 'attack', 'e').length > 1) {
+          const pa = this.pos(a);
+          const pv = this.pos(v);
+          let dx = pv.x - pa.x;
+          if (Math.abs(dx) < 18) {
+            // fast senkrecht übereinander: Angreifer tritt zur Seite
+            const side = pa.x < 480 ? -1 : 1;
+            await this.t.run(0.2, (k) => (a.ox = side * 20 * k));
+            dx = -side * 20;
+          }
+          a.dir = dx >= 0 ? 'e' : 'w';
+          v.dir = dx >= 0 ? 'w' : 'e';
+        }
         v.play('idle', true);
         await this.t.wait(0.18);
         break;
+      }
+      case 'counter': {
+        // Opfer stößt zuerst zu, der Angreifer weicht zurück
+        const dir = this.toward(v, a);
+        this.sfx('swing', v);
+        const vf = st.sprites.frames(v.kind, v.side, 'attack', v.dir);
+        if (vf.length > 1) v.play('attack', false);
+        await this.t.run(0.18, (k) => {
+          v.ox = dir.x * 8 * Math.sin(k * Math.PI * 0.5);
+          v.oy = dir.y * 8 * Math.sin(k * Math.PI * 0.5);
+          a.ox = a.ox + dir.x * 1.2;
+        });
+        await this.t.run(0.15, (k) => {
+          v.ox *= 1 - k;
+          v.oy *= 1 - k;
+        });
+        v.play('idle', true);
+        break;
+      }
+      case 'parry': {
+        const pa = this.pos(a);
+        this.sfx('slash', a);
+        st.effects.sparks(pa.x + a.ox, pa.y, 26, 10);
+        st.shake(2);
+        await this.t.wait(0.2);
+        break;
+      }
+      case 'rear': {
+        // Pferd steigt: nach hinten kippen, hoch, dann krachend nieder
+        const back = this.toward(a, v).x >= 0 ? -1 : 1;
+        this.sfx('jump', a);
+        await this.t.run(0.35, (k) => {
+          a.rot = back * 0.35 * ease.out(k);
+          a.z = 10 * ease.out(k);
+        });
+        await this.t.wait(0.15);
+        const dir = this.toward(a, v);
+        await this.t.run(0.12, (k) => {
+          a.rot = back * 0.35 * (1 - k);
+          a.z = 10 * (1 - k);
+          a.ox = dir.x * 16 * k;
+          a.oy = dir.y * 8 * k;
+        });
+        a.rot = 0;
+        a.z = 0;
+        break;
+      }
+      case 'dizzy': {
+        // Sternchen kreisen über dem Kopf, Opfer schwankt
+        const pv = this.pos(v);
+        const f = this.frameOf(v);
+        const top = pv.y - f.ay + 6;
+        const stars = [0, 1, 2].map(() => st.effects.addProp({ img: starImage(), w: 3, h: 3, x: pv.x, y: pv.y, z: 0, px: 1, py: 1, gravity: false, still: true, life: s.s + 0.2 }));
+        this.sfx('grunt', v);
+        await this.t.run(s.s, (k) => {
+          v.rot = Math.sin(k * Math.PI * 4) * 0.08;
+          stars.forEach((p, i) => {
+            const ang = k * Math.PI * 4 + (i * Math.PI * 2) / 3;
+            p.x = pv.x + Math.cos(ang) * 9;
+            p.y = pv.y + 1;
+            p.z = pv.y - top + Math.sin(ang) * 3;
+          });
+        });
+        v.rot = 0;
+        break;
+      }
+      case 'helmet': {
+        // Helm (obere Kopfpartie) fliegt in hohem Bogen davon
+        const pv = this.pos(v);
+        const f = this.frameOf(v);
+        const { top } = opaqueRows(f.img, f.w, f.h);
+        const helm = cutImage(f.img, 0, top, f.w, 6);
+        const dir = this.toward(a, v);
+        st.effects.addProp({ img: helm, w: f.w, h: 6, x: pv.x, y: pv.y, z: f.ay - top, px: f.ax, py: 6, vx: dir.x * 70 + 10, vy: -10, vz: 170, vrot: 12, bounce: 0.5, life: 3 });
+        this.sfx('clank', v);
+        break;
+      }
       case 'wait':
         await this.t.wait(s.s);
         break;
@@ -466,6 +557,24 @@ export class BattleRunner {
         await this.t.wait(0.9);
         break;
       }
+      case 'launch': {
+        // Fliegt im hohen Bogen über das Brett hinaus
+        const side = dir.x >= 0 ? 1 : -1;
+        this.sfx('blunt', v);
+        const sx = p.x;
+        const sy = p.y;
+        st.camera.shake = 5;
+        await this.t.run(0.9, (k) => {
+          v.ox = side * 260 * k;
+          v.oy = -60 * k;
+          v.z = Math.sin(k * Math.PI) * 120;
+          v.rot = side * k * Math.PI * 3;
+          if (Math.random() < 0.5) fx.blood(sx + v.ox, sy + v.oy, v.z + 20, 1, 0, 0.2, 0.2);
+        });
+        v.visible = false;
+        this.sfx('crunch', v);
+        break;
+      }
       case 'crumble': {
         this.sfx('rubble', v);
         await this.t.run(0.5, (k) => {
@@ -498,11 +607,39 @@ export class BattleRunner {
       case 'wipe':
         await this.t.run(0.5, (k) => (a.ox = Math.sin(k * Math.PI * 4) * 1.5));
         break;
+      case 'cheer':
+        await this.t.run(0.6, (k) => (a.z = Math.abs(Math.sin(k * Math.PI * 2)) * 6));
+        a.z = 0;
+        break;
+      case 'kickHelmet': {
+        // Kickt den herumliegenden Helm weg (falls einer da ist)
+        const helm = [...this.stage.effects.props].reverse().find((p) => p.h === 6 && p.life > 0.5);
+        if (helm) {
+          const pa = this.pos(a);
+          await this.t.run(0.2, (k) => (a.ox = (helm.x - pa.x) * 0.3 * k));
+          helm.vx = (helm.x >= pa.x ? 1 : -1) * 160;
+          helm.vz = 120;
+          helm.vrot = 15;
+          helm.life = 1.2;
+          this.sfx('clank', a);
+          await this.t.wait(0.25);
+        }
+        break;
+      }
       default:
         break;
     }
     a.oy = a.ox = a.rot = 0;
   }
+}
+
+function starImage(): HTMLCanvasElement {
+  const c = makeCanvas(3, 3);
+  const g = ctx2d(c);
+  g.fillStyle = PAL.fire3;
+  g.fillRect(1, 0, 1, 3);
+  g.fillRect(0, 1, 3, 1);
+  return c;
 }
 
 function projectileImage(kind: 'arrow' | 'bolt' | 'spear'): HTMLCanvasElement {
