@@ -24,6 +24,10 @@ Einzige Wahrheit über den Stand. Nach einer Kontext-Zusammenfassung zuerst hier
 
 - **Prototyp Kampf-Sprites (Wunsch Sebastian: detaillierter, Richtung MK, auf dem Brett)**: Bauer in 128 px (art/battle/p, public/assets/battle.*), im Kampf exakt 2x Zoom und halbe Zeichengröße, dadurch pixelgenau doppelt so detailliert. Speerhieb 8 Bilder (PixelLab drehte ihn nach Westen; per art/battle/p/REMAP als West-Angriff ohne Bild 1 genutzt, Osten gespiegelt). Abtrennen im Code (src/battle/dismember.ts) mit Gelenken aus estimate_skeleton (art/battle/p/joints.json): Arm fliegt, Stangenwaffe kippt separat, Stumpf mit Knochenpunkt, Fontäne. Stocherduell (pp) nutzt das. Andere Figuren noch ohne Kampf-Sprites.
 
+- **Kampf-Sprites für alle Figuren (14.11. nachmittags)**: alle sechs Figuren in 128 px (art/battle/<figur>), Bewegungen per PixelLab skeleton-v3 (feste Bewegungen wie chop, sweep, stab, rear_up, shoot_bow, hit, brace, guard; bleiben in der Seitenansicht, v3 drehte Figuren zum Betrachter). Gelenke für Bauer, König, Dame, Läufer. Packer misst Trefferbild und Reichweite je Angriff und Körperbreite je Figur (meta in battle.json), entfernt lose Flecken (drop_specks).
+- **Kampfregeln im Code**: Duellposition auf gleicher Bildhöhe, auf dem Brett, nicht auf Unbeteiligten; Angreifer läuft direkt dorthin; Abstand = Körper berühren sich höchstens, Waffe dringt ein; Fernkampf (Turm) mit Abstand; Treffer im Bild mit größter Reichweite; Kampfstand zwischen Aktionen; Dramaturgie-Regeln (validatePlan) für alle 30 Paarungen getestet. Bild-für-Bild-Prüfung mit tools/review/battle-strip.mjs geprüft: pp, np, kp, bp, rp, qp, qn.
+- **Verworfen**: v3-Animationen in 128 px (Bauer drehte sich weg, Schlieren); König-Kampfstand ohne Schwert (neu mit Handpositionen); Läufer-Treffer ohne Stab (weggelassen).
+
 ## Budget PixelLab
 
 Startwert: 40 Generierungen (Trial). Abbruchgrenze: unter 4.
@@ -42,6 +46,7 @@ Startwert: 40 Generierungen (Trial). Abbruchgrenze: unter 4.
 | Turm-Laufen (abgebrochen, nicht berechnet) | 0 |
 | Prototyp: Aufstellung 2x (1), Bauer 128 (2), Skelett (0,1), Speerhieb 8 Bilder auf 180er Leinwand (4) | 7,1 |
 | **Summe laut PixelLab** | **39,2 von 40, Rest 0,8** |
+| Guthaben (aufgeladen 10 $): 6 Figuren 128 px, rund 20 Bewegungen, Skelette | 0,55 $ verbraucht, 9,45 $ übrig |
 
 OpenAI (gpt-image-2): 2 Bilder (Figurenaufstellung, Hintergrund), ca. 0,15 $.
 
