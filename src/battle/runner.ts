@@ -1,6 +1,6 @@
 import type { Move } from '../../shared/rules.ts';
 import { footstepSfx } from '../audio/sfx.ts';
-import { ANIM_FPS, WALK_FPS, walkFps } from '../config.ts';
+import { ANIM_FPS, POSE_FPS, WALK_FPS, walkFps } from '../config.ts';
 import { Actor } from '../scene/actor.ts';
 import { cutImage, opaqueRows, splitImage } from '../scene/effects.ts';
 import { boardToScreen, dirFromDelta, screenToBoard, squareToBoard } from '../scene/iso.ts';
@@ -280,7 +280,6 @@ export class BattleRunner {
     a.dir = dirFromDelta(pb.x - pa.x, pb.y - pa.y);
   }
 
-  /** Einheitsvektor in Bildschirmpixeln von a nach b. */
   /** Animation, die tatsächlich gespielt wird (zweiter Angriff ohne Bilder: der Hauptangriff). */
   private strikeAnim(a: Actor, anim: AnimName): AnimName {
     return anim === 'attack2' && this.stage.srcFor(a).frames(a.kind, a.side, 'attack2', a.dir).length < 2 ? 'attack' : anim;
@@ -309,6 +308,7 @@ export class BattleRunner {
     this.sfx(footstepSfx(v.kind), v);
   }
 
+  /** Einheitsvektor in Bildschirmpixeln von a nach b. */
   private toward(a: Actor, b: Actor) {
     const pa = this.pos(a);
     const pb = this.pos(b);
@@ -442,7 +442,7 @@ export class BattleRunner {
         const stars = [0, 1, 2].map(() => st.effects.addProp({ img: starImage(), w: 3, h: 3, x: pv.x, y: pv.y, z: 0, px: 1, py: 1, gravity: false, still: true, life: s.s + 0.2 }));
         this.sfx('grunt', v);
         const dazed = st.srcFor(v).frames(v.kind, v.side, 'dazed', v.dir).length > 1;
-        if (dazed) v.play('dazed', true, 7);
+        if (dazed) v.play('dazed', true, POSE_FPS);
         await this.t.run(s.s, (k) => {
           v.rot = Math.sin(k * Math.PI * 4) * (dazed ? 0.04 : 0.08);
           stars.forEach((p, i) => {
@@ -718,10 +718,11 @@ export class BattleRunner {
         const sink = variant === 'pincushion' && st.srcFor(v).frames(v.kind, v.side, 'die2', v.dir).length > 1;
         const anim = sink ? 'die2' : 'die';
         const die = st.srcFor(v).frames(v.kind, v.side, anim, v.dir);
-        if (die.length > 1 && !v.override) {
+        const drawn = die.length > 1 && !v.override;
+        if (drawn) {
           // Gezeichneter Sturz, letztes Bild bleibt liegen
-          v.play(anim, false, sink ? 7 : ANIM_FPS);
-          await this.t.wait(die.length / (sink ? 7 : ANIM_FPS));
+          v.play(anim, false, sink ? POSE_FPS : ANIM_FPS);
+          await this.t.wait(die.length / (sink ? POSE_FPS : ANIM_FPS));
         } else {
           await this.t.run(0.45, (k) => {
             v.rot = side * (Math.PI / 2) * ease.in(k);
@@ -730,7 +731,7 @@ export class BattleRunner {
         this.sfx('bodyfall', v);
         st.shake(3);
         // Liegt rückwärts vom Angreifer weg oder (auf die Knie gesunken) vornüber zu ihm hin
-        const lay = die.length > 1 && sink ? -side : side;
+        const lay = drawn && sink ? -side : side;
         fx.dust(p.x + lay * 20, p.y, 10);
         fx.pool(p.x + lay * 16, p.y, 7);
         fx.blood(p.x + lay * 18, p.y, 4, 8, lay, 0.5, 0.4);
@@ -869,8 +870,8 @@ export class BattleRunner {
         // Gezeichnete Bilder haben beide Arme: nach dem Abtrennen (eigenes Bild mit Stumpf) nur die Bewegung im Code
         if (die2.length > 1 && !v.override) {
           // Gezeichnet: sinkt auf die Knie und fällt vornüber (zum Angreifer hin), der Stumpf blutet weiter
-          v.play('die2', false, 7);
-          await this.t.run(die2.length / 7, (k) => {
+          v.play('die2', false, POSE_FPS);
+          await this.t.run(die2.length / POSE_FPS, (k) => {
             if (Math.random() < 0.6) fx.blood(p.x + stump.dx, p.y, stump.z * (1 - k * 0.8), 1, 0, 0.3, 0.6);
           });
           this.sfx('bodyfall', v);
@@ -938,12 +939,13 @@ export class BattleRunner {
     // Gezeichnete Siegergeste der Figur statt der Geste aus Kippen und Hüpfen
     const vic = this.stage.srcFor(a).frames(a.kind, a.side, 'victory', a.dir);
     if (vic.length > 1 && g !== 'kickHelmet' && g !== 'none') {
-      a.play('victory', false, 7);
+      a.play('victory', false, POSE_FPS);
       if (g === 'bless') {
         const pa = this.pos(a);
-        void this.t.wait(vic.length / 14).then(() => this.stage.effects.sparks(pa.x, pa.y, 60, 8, PAL.fire4));
+        // Funken auf halber Strecke, wenn der Stab oben ist
+        void this.t.wait(vic.length / POSE_FPS / 2).then(() => this.stage.effects.sparks(pa.x, pa.y, 60, 8, PAL.fire4));
       }
-      await this.t.wait(vic.length / 7 + 0.15);
+      await this.t.wait(vic.length / POSE_FPS + 0.15);
       a.play(this.stage.fightIdle(a), true);
       return;
     }

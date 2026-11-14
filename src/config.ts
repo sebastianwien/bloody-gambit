@@ -23,4 +23,7 @@ export const WALK_FPS = 6;
 /** Bildrate für einen Laufzyklus aus n Bildern: immer drei Schritte pro Sekunde, egal wie fein gezeichnet. */
 export const walkFps = (frames: number) => WALK_FPS * Math.max(1, frames / 4);
 
+/** Getragene Bewegungen (Zusammensinken, Siegergeste, Taumeln) laufen etwas langsamer als Angriffe. */
+export const POSE_FPS = 7;
+
 export const SERVER_PORT = 8790;
