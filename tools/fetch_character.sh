@@ -5,6 +5,11 @@
 # Läuft unter macOS, Linux und in der Git Bash unter Windows.
 set -e
 kind=$1; id=$2
+case "$kind" in
+  p|n|b|r|q|k) ;;
+  *) echo "Aufruf: bash tools/fetch_character.sh <p|n|b|r|q|k> <character-id>"; exit 1 ;;
+esac
+if [ -z "$id" ]; then echo "Kennung fehlt"; exit 1; fi
 dir=${CHARDIR:-art/chars}/$kind
 keep=$(mktemp -d)
 for f in SKIP REMAP IMPACT DROPFRAMES joints.json; do
