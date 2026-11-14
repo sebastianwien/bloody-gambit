@@ -58,14 +58,15 @@ export class AudioManager {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     // Wahrgenommene Lautstärke: quadratisch
-    this.musicGain!.gain.setTargetAtTime(this.vol.music * this.vol.music * 0.9, t, 0.05);
+    this.musicGain!.gain.setTargetAtTime(this.vol.music * this.vol.music * 1.6, t, 0.05);
     this.sfxGain!.gain.setTargetAtTime(this.vol.sfx * this.vol.sfx, t, 0.05);
   }
 
   private startAmbient() {
     const ctx = this.ctx!;
     this.ambient = ctx.createGain();
-    this.ambient.gain.value = 0.16;
+    // Umgebung bewusst leise: Regen ist Hintergrund, nicht Hauptsache
+    this.ambient.gain.value = 0.045;
     this.ambient.connect(this.sfxGain!);
     // Regen: Rauschen, hochpassgefiltert, dazu dumpfes Prasseln
     const rain = ctx.createBufferSource();
@@ -74,17 +75,17 @@ export class AudioManager {
     rain.playbackRate.value = 3.2;
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
-    hp.frequency.value = 700;
+    hp.frequency.value = 900;
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 7000;
+    lp.frequency.value = 3200;
     rain.connect(hp).connect(lp).connect(this.ambient);
     rain.start();
     const low = ctx.createBufferSource();
     low.buffer = brownNoise(ctx);
     low.loop = true;
     const lg = ctx.createGain();
-    lg.gain.value = 0.5;
+    lg.gain.value = 0.35;
     const llp = ctx.createBiquadFilter();
     llp.type = 'lowpass';
     llp.frequency.value = 400;
@@ -101,7 +102,7 @@ export class AudioManager {
         f.frequency.value = 2500;
         const g = this.ctx.createGain();
         const t = this.ctx.currentTime;
-        g.gain.setValueAtTime(0.25 + Math.random() * 0.3, t);
+        g.gain.setValueAtTime(0.6 + Math.random() * 0.6, t);
         g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
         n.connect(f).connect(g).connect(this.ambient!);
         n.start(t, Math.random() * 3);

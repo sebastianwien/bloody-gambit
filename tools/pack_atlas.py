@@ -57,12 +57,12 @@ def main():
             continue
         south = Image.open(rot_dir / 'south.png').convert('RGBA')
         size = south.height
-        fy = max(foot_y(Image.open(p).convert('RGBA')) for p in rot_dir.glob('*.png'))
-        fy = min(fy, size) - 1
         rots = {p.stem: Image.open(p).convert('RGBA') for p in rot_dir.glob('*.png')}
+        # Fußpunkt je Richtung: unterste Pixelzeile dieser Ansicht (Pferd ist je nach Blick verschieden tief)
+        feet = {stem: min(foot_y(im), size) - 1 for stem, im in rots.items()}
         pal = palette_of(rots.values())
         for stem, im in rots.items():
-            entries.append((f'{kind}/rot/{DIRS[stem]}', im, south.width / 2, fy))
+            entries.append((f'{kind}/rot/{DIRS[stem]}', im, south.width / 2, feet[stem]))
         # Verworfene Animationen: art/chars/<kind>/SKIP, Zeilen "ordnername/richtung"
         skip_file = kdir / 'SKIP'
         skip = set(skip_file.read_text().split()) if skip_file.exists() else set()
@@ -77,7 +77,7 @@ def main():
                     im = snap(Image.open(fp).convert('RGBA'), pal)
                     # Größere Animationsleinwand ist mittig um die 64er-Leinwand gelegt
                     ax = im.width / 2
-                    ay = fy + (im.height - size) / 2
+                    ay = feet[d.name] + (im.height - size) / 2
                     entries.append((f'{kind}/{anim}/{DIRS[d.name]}/{i}', im, ax, ay))
         _ = south
 
