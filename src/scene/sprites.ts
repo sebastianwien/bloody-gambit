@@ -9,12 +9,10 @@ export interface Frame {
   ay: number;
 }
 
-export type View = 'front' | 'back';
+export type { Dir8 } from './iso.ts';
+import type { Dir8 } from './iso.ts';
 
-/**
- * Animationsnamen. front = Blick zum Betrachter nach rechts unten (SO),
- * back = vom Betrachter weg nach rechts oben (NO). Links = gespiegelt.
- */
+/** Animationsnamen. Die Quelle liefert je Richtung passende Bilder (notfalls gespiegelt). */
 export type AnimName =
   | 'idle'
   | 'quirk'
@@ -25,9 +23,9 @@ export type AnimName =
   | 'defeat';
 
 export interface SpriteSource {
-  frames(kind: PieceSymbol, side: Color, anim: AnimName, view: View): Frame[];
+  frames(kind: PieceSymbol, side: Color, anim: AnimName, dir: Dir8): Frame[];
   /** Ein Standbild (Ruhe). */
-  still(kind: PieceSymbol, side: Color, view: View): Frame;
+  still(kind: PieceSymbol, side: Color, dir: Dir8): Frame;
 }
 
 export function makeCanvas(w: number, h: number): HTMLCanvasElement {

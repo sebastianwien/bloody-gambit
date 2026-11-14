@@ -1,5 +1,5 @@
 import type { Square } from '../../shared/rules.ts';
-import { TILE_H, TILE_W, VIEW_H, VIEW_W } from '../config.ts';
+import { VIEW_H, VIEW_W } from '../config.ts';
 import { Actor } from './actor.ts';
 import { drawBoardLabels, renderBoard } from './board.ts';
 import { boardToScreen, squareToBoard } from './iso.ts';
@@ -66,11 +66,11 @@ export class Stage {
         a.quirkIn -= dt;
         if (a.quirkIn <= 0) {
           a.quirkIn = 8 + Math.random() * 18;
-          if (this.sprites.frames(a.kind, a.side, 'quirk', a.view).length > 1) {
+          if (this.sprites.frames(a.kind, a.side, 'quirk', a.dir).length > 1) {
             a.play('quirk', false);
           }
         }
-      } else if (a.anim === 'quirk' && a.animT * a.fps >= this.sprites.frames(a.kind, a.side, 'quirk', a.view).length) {
+      } else if (a.anim === 'quirk' && a.animT * a.fps >= this.sprites.frames(a.kind, a.side, 'quirk', a.dir).length) {
         a.play('idle', true);
       }
     }
@@ -137,10 +137,11 @@ export class Stage {
     const { f } = a.frame(this.sprites);
     g.save();
     g.globalAlpha = a.alpha;
-    g.translate(x, Math.round(y - a.z));
+    // Laufen ohne eigene Bilder: kleines Hüpfen
+    const bob = a.bob ? Math.round(Math.abs(Math.sin(a.bob * Math.PI)) * -2) : 0;
+    g.translate(x, Math.round(y - a.z) + bob);
     if (a.rot) g.rotate(a.rot);
     if (a.scale !== 1) g.scale(a.scale, a.scale);
-    if (a.mirror) g.scale(-1, 1);
     g.drawImage(f.img, -f.ax, -f.ay);
     if (a.flash > 0) {
       g.globalAlpha = a.flash * a.alpha;
@@ -153,26 +154,23 @@ export class Stage {
     const pulse = 0.5 + 0.5 * Math.sin(this.time * 6);
     for (const m of this.marks) {
       const b = squareToBoard(m.sq);
-      const p = boardToScreen(b.x + 0.5, b.y + 0.5, this.flipped);
-      const x = Math.round(p.x);
-      const y = Math.round(p.y);
       g.save();
       switch (m.kind) {
         case 'last':
-          diamond(g, x, y, TILE_W / 2 - 2, TILE_H / 2 - 1);
+          this.quad(g, b.x, b.y, 0.04);
           g.globalAlpha = 0.22;
           g.fillStyle = PAL.last;
           g.fill();
           break;
         case 'hover':
-          diamond(g, x, y, TILE_W / 2 - 2, TILE_H / 2 - 1);
+          this.quad(g, b.x, b.y, 0.04);
           g.globalAlpha = 0.5;
           g.strokeStyle = PAL.stone6;
           g.lineWidth = 1;
           g.stroke();
           break;
         case 'select':
-          diamond(g, x, y, TILE_W / 2 - 2, TILE_H / 2 - 1);
+          this.quad(g, b.x, b.y, 0.05);
           g.globalAlpha = 0.25 + 0.15 * pulse;
           g.fillStyle = PAL.select;
           g.fill();
@@ -182,26 +180,21 @@ export class Stage {
           g.stroke();
           break;
         case 'move':
-          diamond(g, x, y, 7, 3.5);
-          g.globalAlpha = 0.55 + 0.25 * pulse;
-          g.fillStyle = PAL.move;
-          g.fill();
-          break;
         case 'premove':
-          diamond(g, x, y, 7, 3.5);
-          g.globalAlpha = 0.5;
-          g.fillStyle = PAL.stone6;
+          this.quad(g, b.x, b.y, 0.38);
+          g.globalAlpha = m.kind === 'move' ? 0.55 + 0.25 * pulse : 0.5;
+          g.fillStyle = m.kind === 'move' ? PAL.move : PAL.stone6;
           g.fill();
           break;
         case 'capture':
-          diamond(g, x, y, TILE_W / 2 - 3, TILE_H / 2 - 1.5);
+          this.quad(g, b.x, b.y, 0.07);
           g.globalAlpha = 0.5 + 0.4 * pulse;
           g.strokeStyle = PAL.capture;
           g.lineWidth = 2;
           g.stroke();
           break;
         case 'check':
-          diamond(g, x, y, TILE_W / 2 - 1, TILE_H / 2);
+          this.quad(g, b.x, b.y, 0.02);
           g.globalAlpha = 0.3 + 0.35 * pulse;
           g.fillStyle = PAL.check;
           g.fill();
@@ -211,18 +204,24 @@ export class Stage {
     }
   }
 
+  /** Pfad eines Feldes (f, r), um inset Felder nach innen gerückt. */
+  quad(g: CanvasRenderingContext2D, f: number, r: number, inset: number) {
+    const fl = this.flipped;
+    const a = boardToScreen(f + inset, r + inset, fl);
+    const b = boardToScreen(f + 1 - inset, r + inset, fl);
+    const c = boardToScreen(f + 1 - inset, r + 1 - inset, fl);
+    const d = boardToScreen(f + inset, r + 1 - inset, fl);
+    g.beginPath();
+    g.moveTo(Math.round(a.x), Math.round(a.y));
+    g.lineTo(Math.round(b.x), Math.round(b.y));
+    g.lineTo(Math.round(c.x), Math.round(c.y));
+    g.lineTo(Math.round(d.x), Math.round(d.y));
+    g.closePath();
+  }
+
   shake(amount: number) {
     this.camera.shake = Math.max(this.camera.shake, amount);
   }
-}
-
-export function diamond(g: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number) {
-  g.beginPath();
-  g.moveTo(x - rx, y);
-  g.lineTo(x, y - ry);
-  g.lineTo(x + rx, y);
-  g.lineTo(x, y + ry);
-  g.closePath();
 }
 
 const flashCache = new WeakMap<object, HTMLCanvasElement>();
@@ -242,5 +241,4 @@ export function flashCanvas(f: { img: CanvasImageSource; w: number; h: number })
   return c;
 }
 
-export const STAGE_TILE = { w: TILE_W, h: TILE_H };
 export { VIEW_H, VIEW_W };

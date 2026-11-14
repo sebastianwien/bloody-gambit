@@ -1,8 +1,12 @@
 import type { Square } from '../shared/rules.ts';
 import { END_TEXT } from '../shared/rules.ts';
+import { AiClient } from './ai/client.ts';
+import { Engine } from './ai/engine.ts';
+import type { AiLevel } from './ai/levels.ts';
 import { GameController, type GameSetup } from './game/controller.ts';
 import { Director } from './scene/director.ts';
 import { pickSquare } from './scene/picking.ts';
+import { squareCenter } from './scene/iso.ts';
 import { PlaceholderSprites } from './scene/placeholderSprites.ts';
 import type { SpriteSource } from './scene/sprites.ts';
 import { Stage } from './scene/stage.ts';
@@ -18,6 +22,9 @@ export class App {
   director: Director;
   sprites: SpriteSource;
   game: GameController | null = null;
+  aiClient: AiClient | null = null;
+  /** Letzte Klicks (für Tests). */
+  clickLog: string[] = [];
   private last = performance.now();
   private status: HTMLElement;
 
@@ -34,7 +41,17 @@ export class App {
   }
 
   async start() {
-    this.newGame({ mode: 'local', players: { w: 'human', b: 'human' }, aiLevel: 2, bottom: 'w' });
+    const q = new URLSearchParams(location.search);
+    if (q.get('start') === 'ai') {
+      const human = (q.get('color') ?? 'w') as 'w' | 'b';
+      const level = Number(q.get('level') ?? 2) as AiLevel;
+      this.newGame({
+        mode: 'ai',
+        players: human === 'w' ? { w: 'human', b: 'ai' } : { w: 'ai', b: 'human' },
+        aiLevel: level,
+        bottom: human,
+      });
+    } else this.newGame({ mode: 'local', players: { w: 'human', b: 'human' }, aiLevel: 2, bottom: 'w' });
     requestAnimationFrame(this.frame);
     // Im Hintergrund-Tab pausiert requestAnimationFrame; Abläufe sollen trotzdem weiterlaufen.
     setInterval(() => {
@@ -44,7 +61,13 @@ export class App {
   }
 
   newGame(setup: GameSetup) {
+    this.aiClient?.dispose();
+    this.aiClient = null;
     const game = new GameController(setup, this.stage, this.director);
+    if (setup.mode === 'ai') {
+      this.aiClient = new AiClient(setup.aiLevel);
+      game.ai = this.aiClient;
+    }
     game.events = {
       turn: (r) => this.setStatus(r.turn() === 'w' ? 'Weiß ist am Zug' : 'Schwarz ist am Zug'),
       ended: (end) => this.setStatus(END_TEXT[end.reason] + (end.winner ? (end.winner === 'w' ? ' - Weiß gewinnt' : ' - Schwarz gewinnt') : ' - Remis')),
@@ -68,11 +91,16 @@ export class App {
 
   private bindInput() {
     this.canvas.addEventListener('pointerdown', (e) => {
-      if (this.stage.tweens.busy) {
+      // Klick während eines laufenden Zuges spult vor
+      if (this.game?.busy && this.stage.tweens.busy) {
         this.stage.tweens.skipAll();
+        this.clickLog.push('skip');
         return;
       }
-      this.game?.click(this.squareAt(e.clientX, e.clientY));
+      const sq = this.squareAt(e.clientX, e.clientY);
+      this.clickLog.push(sq ?? '-');
+      if (this.clickLog.length > 20) this.clickLog.shift();
+      this.game?.click(sq);
     });
     this.canvas.addEventListener('pointermove', (e) => {
       if (!this.game) return;
@@ -98,14 +126,16 @@ export class App {
     requestAnimationFrame(this.frame);
   };
 
+  /** Testhilfe: Engine-Vorschlag für die Seite am Zug (feste Tiefe, ohne Buch). */
+  suggestMove(depth: number): string | null {
+    const e = new Engine(this.game!.rules.fen());
+    return e.think({ maxDepth: depth, timeMs: 1000 }).move;
+  }
+
   /** Testhilfe: Feldmitte in Client-Koordinaten. */
   squareToClient(sq: Square) {
-    const b = { x: sq.charCodeAt(0) - 97 + 0.5, y: sq.charCodeAt(1) - 49 + 0.5 };
-    const u = this.stage.flipped ? 8 - b.x : b.x;
-    const v = this.stage.flipped ? 8 - b.y : b.y;
-    const wx = 480 - 256 + ((u + v) * 64) / 2;
-    const wy = 300 + ((u - v) * 32) / 2;
-    const vp = this.stage.worldToView(wx, wy);
+    const c = squareCenter(sq, this.stage.flipped);
+    const vp = this.stage.worldToView(c.x, c.y);
     const r = this.canvas.getBoundingClientRect();
     return { x: r.left + (vp.x / 960) * r.width, y: r.top + (vp.y / 540) * r.height };
   }

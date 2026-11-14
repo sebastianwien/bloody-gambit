@@ -6,13 +6,15 @@ export const GAME_VERSION = '0.1.0';
 export const VIEW_W = 960;
 export const VIEW_H = 540;
 
-/** Isometrische Kachel (Raute). */
-export const TILE_W = 64;
-export const TILE_H = 32;
-
-/** Linke Ecke des Bretts (Feld a1 aus Sicht Weiß) in Bildschirmkoordinaten. */
-export const BOARD_OX = VIEW_W / 2 - 4 * TILE_W;
-export const BOARD_OY = 300;
+/**
+ * Brett aus Sicht des Spielers mit leichter Perspektive: die vordere Kante ist breit und unten,
+ * die hintere schmaler und oben. Feldbreite vorne in Pixeln, Verkleinerung hinten als Faktor.
+ */
+export const BOARD_CX = VIEW_W / 2;
+export const BOARD_NEAR_Y = 492;
+export const BOARD_FAR_Y = 156;
+export const TILE_W = 60;
+export const FAR_SCALE = 0.76;
 
 /** Kampf- und Laufanimationen laufen mit 8 Bildern pro Sekunde. */
 export const ANIM_FPS = 8;

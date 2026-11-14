@@ -1,6 +1,6 @@
 import type { Move, PieceSymbol, Square } from '../../shared/rules.ts';
 import { Actor } from './actor.ts';
-import { boardToScreen, squareToBoard } from './iso.ts';
+import { boardToScreen, dirFromDelta, squareToBoard } from './iso.ts';
 import type { Stage } from './stage.ts';
 import { ease } from './tween.ts';
 
@@ -29,11 +29,10 @@ export class Director {
     });
   }
 
-  /** Ruhe-Blickrichtung: untere Armee schaut nach rechts unten, obere nach links unten. */
+  /** Ruhe-Blickrichtung: beide Armeen schauen zum Gegner, die untere also vom Betrachter weg. */
   orient(a: Actor) {
     const bottom = (a.side === 'w') !== this.stage.flipped;
-    a.restView = 'front';
-    a.restMirror = !bottom;
+    a.restDir = bottom ? 'n' : 's';
   }
 
   reorientAll() {
@@ -49,8 +48,7 @@ export class Director {
     const to = boardToScreen(tx, ty, this.stage.flipped);
     const dx = to.x - from.x;
     const dy = to.y - from.y;
-    if (Math.abs(dy) > 0.5) a.view = dy > 0 ? 'front' : 'back';
-    if (Math.abs(dx) > 0.5) a.mirror = dx < 0;
+    if (Math.abs(dx) + Math.abs(dy) > 0.5) a.dir = dirFromDelta(dx, dy);
   }
 
   walkDuration(dist: number): number {
@@ -66,10 +64,12 @@ export class Director {
     this.face(a, tx, ty);
     a.play('walk', true);
     let lastStep = -1;
+    const own = this.stage.sprites.frames(a.kind, a.side, 'walk', a.dir).length > 1;
     await this.stage.tweens.run(dur ?? this.walkDuration(dist), (t) => {
       const e = ease.inOut(t);
       a.bx = sx + (tx - sx) * e;
       a.by = sy + (ty - sy) * e;
+      if (!own) a.bob = t < 1 ? a.animT * 4 : 0;
       const step = Math.floor(a.animT * 4);
       if (step !== lastStep && t < 1) {
         lastStep = step;

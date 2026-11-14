@@ -1,12 +1,12 @@
-import { BOARD_OX, BOARD_OY, TILE_H, TILE_W, VIEW_H, VIEW_W } from '../config.ts';
+import { VIEW_H, VIEW_W } from '../config.ts';
 import { ctx2d, makeCanvas } from './sprites.ts';
 import { PAL, hexToRgb } from './palette.ts';
-import { boardToScreen, screenToBoard } from './iso.ts';
+import { boardToScreen, depthScale, screenToBoard } from './iso.ts';
 import { mulberry32 } from '../util/random.ts';
 
-/** Randbreite in Feldern und Höhe der Seitenwand in Pixeln. */
-export const RIM = 0.42;
-export const WALL = 22;
+/** Randbreite in Feldern und Höhe der vorderen Wand in Pixeln. */
+export const RIM = 0.38;
+export const WALL = 20;
 
 type RGB = [number, number, number];
 const mix = (a: RGB, b: RGB, t: number): RGB => [
@@ -16,8 +16,8 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [
 ];
 
 /**
- * Zeichnet das Steinbrett mit Rand und Seitenwänden einmal in eine Leinwand.
- * Das Muster ist 180° symmetrisch, darum gleich für beide Blickrichtungen.
+ * Zeichnet das Steinbrett mit Rand und vorderer Wand einmal in eine Leinwand.
+ * Das Muster ist 180° symmetrisch (a1 und h8 dunkel), darum gleich für beide Seiten.
  */
 export function renderBoard(): HTMLCanvasElement {
   const c = makeCanvas(VIEW_W, VIEW_H);
@@ -29,12 +29,11 @@ export function renderBoard(): HTMLCanvasElement {
   const light: RGB[] = [hexToRgb(PAL.stone4), hexToRgb(PAL.stone5), hexToRgb('#8b8273')];
   const dark: RGB[] = [hexToRgb(PAL.stone1), hexToRgb(PAL.stone2), hexToRgb('#332e30')];
   const rimCol: RGB[] = [hexToRgb(PAL.stone2), hexToRgb(PAL.stone3)];
-  const wallL = hexToRgb(PAL.stone2);
-  const wallR = hexToRgb(PAL.stone1);
+  const wallCol = hexToRgb(PAL.stone2);
   const grout = hexToRgb(PAL.stone0);
   const moss = hexToRgb(PAL.moss1);
+  const hi: RGB = [230, 220, 200];
 
-  // Pro Feld eine Grundfarbe und eine Risslinie
   const tileBase: RGB[][] = [];
   const crack: { a: number; b: number; s: number }[][] = [];
   for (let f = 0; f < 8; f++) {
@@ -47,14 +46,6 @@ export function renderBoard(): HTMLCanvasElement {
       crack[f][r] = { a: rnd(), b: rnd(), s: rnd() < 0.45 ? rnd() : -1 };
     }
   }
-  // Randsteine: 8 Blöcke je Seite + Ecken
-  const rimBlock = (t: number) => Math.floor(t * 1.5);
-
-  const outer0 = -RIM;
-  const outer1 = 8 + RIM;
-  const L = boardToScreen(outer0, outer0, false); // linke Ecke
-  const B = boardToScreen(outer1, outer0, false); // untere Ecke
-  const R = boardToScreen(outer1, outer1, false); // rechte Ecke
 
   const put = (i: number, col: RGB, n: number) => {
     d[i] = Math.max(0, Math.min(255, col[0] + n));
@@ -63,71 +54,61 @@ export function renderBoard(): HTMLCanvasElement {
     d[i + 3] = 255;
   };
 
-  const yMin = Math.floor(boardToScreen(outer0, outer1, false).y) - 1;
-  const yMax = Math.ceil(B.y + WALL) + 1;
-  for (let y = yMin; y <= yMax; y++) {
-    for (let x = Math.floor(L.x) - 1; x <= Math.ceil(R.x) + 1; x++) {
+  const o0 = -RIM;
+  const o1 = 8 + RIM;
+  const nearL = boardToScreen(o0, o0, false);
+  const nearR = boardToScreen(o1, o0, false);
+  const farY = Math.floor(boardToScreen(o0, o1, false).y);
+
+  for (let y = farY - 1; y <= Math.ceil(nearL.y + WALL) + 1; y++) {
+    for (let x = Math.floor(nearL.x) - 1; x <= Math.ceil(nearR.x) + 1; x++) {
       if (x < 0 || y < 0 || x >= VIEW_W || y >= VIEW_H) continue;
       const i = (y * VIEW_W + x) * 4;
-      const p = screenToBoard(x + 0.5, y + 0.5, false);
       const noise = (rnd() - 0.5) * 14;
+      if (y > nearL.y) {
+        // Vordere Wand: Mauerwerk, nach unten dunkler
+        const dy = y - nearL.y;
+        if (dy > WALL || x < nearL.x || x > nearR.x) continue;
+        const row = Math.floor(dy / 7);
+        const bx = Math.floor(x + (row % 2) * 9) % 18;
+        let col = wallCol;
+        if (dy % 7 === 0 || bx === 0) col = grout;
+        put(i, mix(col, grout, dy / WALL / 1.8), noise);
+        continue;
+      }
+      const p = screenToBoard(x + 0.5, y + 0.5, false);
+      // Pixelgröße schrumpft nach hinten: Kantenbreiten in Feldern anpassen
+      const px = 1 / (60 * depthScale(Math.max(0, p.y)));
       if (p.x >= 0 && p.x < 8 && p.y >= 0 && p.y < 8) {
         const f = Math.floor(p.x);
         const r = Math.floor(p.y);
         const fx = p.x - f;
         const fy = p.y - r;
         let col = tileBase[f][r];
-        // Fugen: dunkle Linie an den Kanten, heller Grat oben links (Licht von links oben)
-        const edge = Math.min(fx, fy, 1 - fx, 1 - fy);
-        if (edge < 0.025) {
+        const edge = Math.min(fx, fy * 0.6, 1 - fx, (1 - fy) * 0.6);
+        if (edge < px * 0.9) {
           put(i, grout, noise * 0.3);
           continue;
         }
-        if (fy > 0.95 || fx < 0.06) col = mix(col, [230, 220, 200], 0.12);
-        if (fx > 0.94 || fy < 0.06) col = mix(col, grout, 0.35);
-        // Riss als schräge Linie
+        // Licht von links oben: obere und linke Kante hell, rechte und vordere dunkel
+        if (1 - fy < px * 3 || fx < px * 2.5) col = mix(col, hi, 0.13);
+        if (fx > 1 - px * 2.5 || fy < px * 3) col = mix(col, grout, 0.35);
         const ck = crack[f][r];
         if (ck.s >= 0) {
           const line = Math.abs(fy - (ck.a + (ck.b - ck.a) * fx) * 0.8 - 0.1 + Math.sin(fx * 9 + ck.s * 6) * 0.04);
-          if (line < 0.02 && fx > ck.s * 0.4 && fx < 0.4 + ck.s * 0.6) col = mix(col, grout, 0.7);
+          if (line < px * 1.2 && fx > ck.s * 0.4 && fx < 0.4 + ck.s * 0.6) col = mix(col, grout, 0.7);
         }
-        // Moos in Fugennähe auf hellen Feldern
-        if ((f + r) % 2 === 1 && edge < 0.08 && rnd() < 0.18) col = mix(col, moss, 0.45);
+        if ((f + r) % 2 === 1 && edge < px * 4 && rnd() < 0.18) col = mix(col, moss, 0.45);
         put(i, col, noise);
-      } else if (p.x >= outer0 && p.x < outer1 && p.y >= outer0 && p.y < outer1) {
-        // Randsteine
+      } else if (p.x >= o0 && p.x < o1 && p.y >= o0 && p.y < o1) {
         const along = p.x < 0 || p.x >= 8 ? p.y : p.x;
-        const blk = rimBlock(along);
+        const blk = Math.floor(along * 1.5);
         let col = rimCol[((blk % 2) + 2) % 2];
         const inner = Math.min(Math.abs(p.x), Math.abs(p.y), Math.abs(8 - p.x), Math.abs(8 - p.y));
-        if (Math.abs(along * 1.5 - Math.round(along * 1.5)) < 0.03) col = grout;
-        else if (inner < 0.04) col = grout;
+        if (Math.abs(along * 1.5 - Math.round(along * 1.5)) < px * 1.5 || inner < px * 1.2) col = grout;
+        // Vorderkante des Rands leicht heller (Kante im Licht)
+        if (p.y < o0 + px * 2) col = mix(col, hi, 0.15);
         put(i, col, noise);
-      } else {
-        // Seitenwände: linke Wand unter Kante L-B, rechte unter B-R
-        if (x <= B.x) {
-          const t = (x - L.x) / (B.x - L.x);
-          const ey = L.y + (B.y - L.y) * t;
-          if (y > ey && y <= ey + WALL && t >= 0) {
-            const dy = y - ey;
-            const brickRow = Math.floor(dy / 7);
-            const bx = (x + (brickRow % 2) * 8) % 16;
-            let col = wallL;
-            if (dy % 7 === 0 || bx === 0) col = grout;
-            put(i, mix(col, grout, dy / WALL / 2.2), noise);
-          }
-        } else {
-          const t = (x - B.x) / (R.x - B.x);
-          const ey = B.y + (R.y - B.y) * t;
-          if (y > ey && y <= ey + WALL && t <= 1) {
-            const dy = y - ey;
-            const brickRow = Math.floor(dy / 7);
-            const bx = (x + (brickRow % 2) * 8) % 16;
-            let col = wallR;
-            if (dy % 7 === 0 || bx === 0) col = grout;
-            put(i, mix(col, grout, dy / WALL / 2.2), noise);
-          }
-        }
       }
     }
   }
@@ -135,30 +116,28 @@ export function renderBoard(): HTMLCanvasElement {
   return c;
 }
 
-/** Beschriftung a-h und 1-8 auf dem Rand. */
+/** Beschriftung a-h vorne und 1-8 links auf dem Rand. */
 export function drawBoardLabels(g: CanvasRenderingContext2D, flipped: boolean) {
   g.save();
   g.font = '10px Wolfsrune';
   g.textAlign = 'center';
-  g.textBaseline = 'alphabetic';
   g.fillStyle = PAL.stone5;
   for (let i = 0; i < 8; i++) {
-    // Linien entlang der unteren rechten Kante (Reihe -RIM/2 aus Sicht unten)
     const fi = flipped ? 7 - i : i;
     const pf = boardToScreen(i + 0.5, -RIM / 2, false);
     g.fillText(String.fromCharCode(97 + fi), Math.round(pf.x), Math.round(pf.y + 4));
-    const ri = flipped ? 7 - i : i;
     const pr = boardToScreen(-RIM / 2, i + 0.5, false);
-    g.fillText(String(ri + 1), Math.round(pr.x), Math.round(pr.y + 4));
+    g.fillText(String(fi + 1), Math.round(pr.x), Math.round(pr.y + 4));
   }
   g.restore();
 }
 
-export const BOARD_CORNERS = {
-  left: boardToScreen(-RIM, -RIM, false),
-  bottom: boardToScreen(8 + RIM, -RIM, false),
-  right: boardToScreen(8 + RIM, 8 + RIM, false),
-  top: boardToScreen(-RIM, 8 + RIM, false),
-};
-
-export const TILE = { w: TILE_W, h: TILE_H, ox: BOARD_OX, oy: BOARD_OY };
+/** Ecken des Bretts mit Rand (Bildschirm). */
+export function boardCorners() {
+  return {
+    nearLeft: boardToScreen(-RIM, -RIM, false),
+    nearRight: boardToScreen(8 + RIM, -RIM, false),
+    farLeft: boardToScreen(-RIM, 8 + RIM, false),
+    farRight: boardToScreen(8 + RIM, 8 + RIM, false),
+  };
+}

@@ -1,7 +1,7 @@
 import type { Color, PieceSymbol, Square } from '../../shared/rules.ts';
 import { ANIM_FPS } from '../config.ts';
-import { boardToScreen, squareToBoard } from './iso.ts';
-import type { AnimName, Frame, SpriteSource, View } from './sprites.ts';
+import { boardToScreen, squareToBoard, type Dir8 } from './iso.ts';
+import type { AnimName, Frame, SpriteSource } from './sprites.ts';
 
 let nextId = 1;
 
@@ -18,12 +18,10 @@ export class Actor {
   /** Bildschirmversatz für Kampfszenen. */
   ox = 0;
   oy = 0;
-  view: View = 'front';
-  mirror = false;
+  dir: Dir8 = 's';
   anim: AnimName = 'idle';
   animT = 0;
   loop = true;
-  /** Bildrate dieser Animation. */
   fps = ANIM_FPS;
   alpha = 1;
   flash = 0;
@@ -32,11 +30,12 @@ export class Actor {
   visible = true;
   /** Zeit bis zur nächsten Eigenheit im Ruhezustand. */
   quirkIn = 4 + Math.random() * 14;
-  /** Wird ein Bild mit eigener Leinwand gezeigt (Todesvarianten), ersetzt es die Animation. */
+  /** Eigenes Bild (Todesvarianten), ersetzt die Animation. */
   override: Frame | null = null;
-  /** Vorgabe-Blickrichtung im Ruhezustand. */
-  restView: View = 'front';
-  restMirror = false;
+  /** Blickrichtung im Ruhezustand. */
+  restDir: Dir8 = 's';
+  /** Laufen ohne eigene Laufbilder: Schaukeln im Code. */
+  bob = 0;
 
   constructor(kind: PieceSymbol, side: Color, sq: Square) {
     this.kind = kind;
@@ -60,15 +59,14 @@ export class Actor {
   }
 
   rest() {
-    this.view = this.restView;
-    this.mirror = this.restMirror;
+    this.dir = this.restDir;
+    this.bob = 0;
     this.play('idle', true);
   }
 
-  /** Aktuelles Bild und ob die Animation durch ist. */
   frame(src: SpriteSource): { f: Frame; done: boolean } {
     if (this.override) return { f: this.override, done: true };
-    const frames = src.frames(this.kind, this.side, this.anim, this.view);
+    const frames = src.frames(this.kind, this.side, this.anim, this.dir);
     const n = frames.length;
     const idx = Math.floor(this.animT * this.fps);
     if (this.loop) return { f: frames[idx % n], done: false };
@@ -76,6 +74,6 @@ export class Actor {
   }
 
   duration(src: SpriteSource, anim: AnimName = this.anim): number {
-    return src.frames(this.kind, this.side, anim, this.view).length / this.fps;
+    return src.frames(this.kind, this.side, anim, this.dir).length / this.fps;
   }
 }

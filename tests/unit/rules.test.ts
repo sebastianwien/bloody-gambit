@@ -96,13 +96,17 @@ describe('Isometrie', () => {
     }
   });
 
-  it('a1 liegt links, h1 unten, a8 oben, h8 rechts', () => {
+  it('Weiß unten: a1 vorne links, h1 vorne rechts, a8 hinten links', () => {
     const a1 = boardToScreen(0.5, 0.5, false);
     const h1 = boardToScreen(7.5, 0.5, false);
     const a8 = boardToScreen(0.5, 7.5, false);
     const h8 = boardToScreen(7.5, 7.5, false);
     expect(a1.x).toBeLessThan(h1.x);
-    expect(h1.y).toBeGreaterThan(a8.y);
-    expect(h8.x).toBeGreaterThan(a8.x);
+    expect(a1.y).toBeCloseTo(h1.y);
+    expect(a8.y).toBeLessThan(a1.y);
+    // hintere Reihe schmaler (Perspektive)
+    expect(h8.x - a8.x).toBeLessThan(h1.x - a1.x);
+    // Schwarz unten: h8 vorne links
+    expect(boardToScreen(7.5, 7.5, true).x).toBeCloseTo(a1.x);
   });
 });

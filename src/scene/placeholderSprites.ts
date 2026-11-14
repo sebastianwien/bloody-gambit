@@ -1,5 +1,8 @@
 import type { Color, PieceSymbol } from '../../shared/rules.ts';
-import { ctx2d, makeCanvas, type AnimName, type Frame, type SpriteSource, type View } from './sprites.ts';
+import { ctx2d, makeCanvas, type AnimName, type Dir8, type Frame, type SpriteSource } from './sprites.ts';
+
+type View = 'front' | 'back';
+const viewOf = (d: Dir8): View => (d.startsWith('n') ? 'back' : 'front');
 
 /**
  * Einfache gezeichnete Figuren, bis die PixelLab-Grafiken da sind (und als Rückfall,
@@ -135,13 +138,14 @@ export class PlaceholderSprites implements SpriteSource {
     return f;
   }
 
-  frames(kind: PieceSymbol, side: Color, anim: AnimName, view: View): Frame[] {
+  frames(kind: PieceSymbol, side: Color, anim: AnimName, dir: Dir8): Frame[] {
+    const view = viewOf(dir);
     if (anim === 'walk') return [0, -2, 0, -2].map((b) => this.make(kind, side, view, b));
     if (anim === 'idle') return [this.make(kind, side, view, 0), this.make(kind, side, view, 0), this.make(kind, side, view, 1)];
     return [this.make(kind, side, view, 0)];
   }
 
-  still(kind: PieceSymbol, side: Color, view: View): Frame {
-    return this.make(kind, side, view, 0);
+  still(kind: PieceSymbol, side: Color, dir: Dir8): Frame {
+    return this.make(kind, side, viewOf(dir), 0);
   }
 }

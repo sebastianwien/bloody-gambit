@@ -13,7 +13,7 @@ export function choosePromotion(ui: HTMLElement, color: Color, sprites: SpriteSo
       resolve(p);
     };
     for (const p of ['q', 'r', 'b', 'n'] as PieceSymbol[]) {
-      const f = sprites.still(p, color, 'front');
+      const f = sprites.still(p, color, 's');
       const cv = el('canvas', { width: f.w, height: f.h, style: `width:${f.w}px;height:${f.h}px;image-rendering:pixelated;display:block;margin:0 auto 4px` });
       const g = cv.getContext('2d')!;
       g.imageSmoothingEnabled = false;

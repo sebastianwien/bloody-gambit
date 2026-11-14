@@ -34,9 +34,8 @@ export function pickSquare(stage: Stage, wx: number, wy: number, preferTile?: (s
   for (const a of list) {
     const p = a.screen(stage.flipped);
     const { f } = a.frame(stage.sprites);
-    let lx = Math.floor(wx - (Math.round(p.x) - (a.mirror ? f.w - f.ax : f.ax)));
+    const lx = Math.floor(wx - (Math.round(p.x) - f.ax));
     const ly = Math.floor(wy - (Math.round(p.y - a.z) - f.ay));
-    if (a.mirror) lx = f.w - 1 - lx;
     if (alphaAt(f, lx, ly) > 40) return a.sq;
   }
   return tile;
