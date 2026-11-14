@@ -31,6 +31,8 @@ export interface ControllerEvents {
   choosePromotion?(color: Color): Promise<PieceSymbol | null>;
   /** Lokaler Zug, bevor er abgespielt wird (Online: an den Server schicken). */
   localMove?(m: MoveInput): void;
+  /** Eigene Figur ausgewählt oder Klick ins Leere. */
+  selected?(sq: Square | null): void;
   /** Animation eines Zuges beginnt oder endet (Uhren, Online-Pause). */
   animating?(on: boolean): void;
 }
@@ -114,6 +116,7 @@ export class GameController {
     }
     if (piece && piece.color === turn) this.selected = this.selected === sq ? null : sq;
     else this.selected = null;
+    this.events.selected?.(this.selected);
     this.refreshMarks();
   }
 

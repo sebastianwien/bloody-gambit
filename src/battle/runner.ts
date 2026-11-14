@@ -25,6 +25,8 @@ export type SfxName =
   | 'land'
   | 'whoosh'
   | 'clank'
+  | 'hoof'
+  | 'stone'
   | 'grunt';
 
 export interface BattleHooks {
@@ -145,7 +147,7 @@ export class BattleRunner {
       const step = Math.floor(a.animT * 4);
       if (step !== lastStep && k < 1) {
         lastStep = step;
-        if (step % 2 === 0) this.sfx('clank', a);
+        if (step % 2 === 0) this.sfx(a.kind === 'n' ? 'hoof' : a.kind === 'r' ? 'stone' : 'clank', a);
       }
     });
     a.bob = 0;

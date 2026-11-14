@@ -302,6 +302,7 @@ export class OnlineApp extends App {
     const r = this.resultFor(end, g.setup);
     this.screens.hudStatus(`${r.title} - ${END_TEXT[end.reason]}`);
     this.mode = 'over';
+    this.endSound(r.good);
     setTimeout(() => {
       if (this.game === g && this.room) this.refreshOver(this.room);
     }, 900);

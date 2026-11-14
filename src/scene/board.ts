@@ -26,8 +26,9 @@ export function renderBoard(): HTMLCanvasElement {
   const d = img.data;
   const rnd = mulberry32(1337);
 
-  const light: RGB[] = [hexToRgb(PAL.stone4), hexToRgb(PAL.stone5), hexToRgb('#8b8273')];
-  const dark: RGB[] = [hexToRgb(PAL.stone1), hexToRgb(PAL.stone2), hexToRgb('#332e30')];
+  // Helle Felder gedämpft, damit das Brett in der Nachtszene nicht leuchtet
+  const light: RGB[] = [hexToRgb('#6e665c'), hexToRgb('#7d7467'), hexToRgb('#736a5f')];
+  const dark: RGB[] = [hexToRgb(PAL.stone1), hexToRgb('#302b2d'), hexToRgb('#28232a')];
   const rimCol: RGB[] = [hexToRgb(PAL.stone2), hexToRgb(PAL.stone3)];
   const wallCol = hexToRgb(PAL.stone2);
   const grout = hexToRgb(PAL.stone0);

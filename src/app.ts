@@ -1,6 +1,7 @@
 import type { Color, GameEnd, Move, Square } from '../shared/rules.ts';
 import { END_TEXT } from '../shared/rules.ts';
 import { AiClient } from './ai/client.ts';
+import { AudioManager } from './audio/audio.ts';
 import { Engine } from './ai/engine.ts';
 import { LEVEL_NAMES, type AiLevel } from './ai/levels.ts';
 import { shouldShowBattle } from './battle/kit.ts';
@@ -15,6 +16,7 @@ import { pickSquare } from './scene/picking.ts';
 import { PlaceholderSprites } from './scene/placeholderSprites.ts';
 import type { SpriteSource } from './scene/sprites.ts';
 import { Stage } from './scene/stage.ts';
+import { setupEnvironment } from './scene/environment.ts';
 import { choosePromotion } from './ui/promotion.ts';
 import { Screens } from './ui/screens.ts';
 import { fitViewport, toLogical } from './ui/viewport.ts';
@@ -34,6 +36,8 @@ export class App {
   game: GameController | null = null;
   aiClient: AiClient | null = null;
   mode: Mode = 'loading';
+  env: ReturnType<typeof setupEnvironment>;
+  audio = new AudioManager();
   /** Letzte Klicks (für Tests). */
   clickLog: string[] = [];
   protected seen: Set<string>;
@@ -51,6 +55,17 @@ export class App {
     this.battle = new BattleRunner(this.stage);
     this.director.hooks.battle = (a, v, m) => this.onCapture(a, v, m);
     this.screens = new Screens(this.ui, () => this.sprites);
+    this.env = setupEnvironment(this.stage, {
+      thunder: (strength, delay) => this.audio.later('thunder', delay, strength),
+      crow: () => this.audio.sfx('crow', 0.6, 0.7),
+      rat: () => this.audio.sfx('rat', 0, 0.6),
+    });
+    this.screens.onClick = () => this.audio.sfx('click');
+    const pan = (a: Actor) => (a.screen(this.stage.flipped).x - 480) / 480;
+    this.director.hooks.footstep = (a) => this.audio.sfx(a.kind === 'n' ? 'hoof' : a.kind === 'r' ? 'stone' : 'clank', pan(a), 0.7);
+    this.director.hooks.land = (a) => this.audio.sfx('land', pan(a));
+    this.battle.hooks.sfx = (n, p) => this.audio.sfx(n, p);
+    this.director.hooks.promote = (a, to) => this.promoteScene(a, to);
     this.applySettings();
     this.bindInput();
   }
@@ -65,6 +80,8 @@ export class App {
     this.screens.loading(0, 'Lade Figuren');
     this.sprites = await AtlasSprites.load('/assets/pieces', new PlaceholderSprites(), (p) => this.screens.loading(p * 0.9, 'Lade Figuren'));
     this.stage.sprites = this.sprites;
+    this.screens.loading(0.95, 'Lade Burgruine');
+    await this.env.bg.ready();
     this.screens.loading(1, 'Bereit');
     const q = new URLSearchParams(location.search);
     const start = q.get('start');
@@ -89,6 +106,7 @@ export class App {
     this.screens.hudShow(false);
     this.demoBoard();
     this.stage.camera.zoom = 1.25;
+    this.audio.playMusic('menu');
     this.screens.title(() => this.showMenu());
   }
 
@@ -99,6 +117,7 @@ export class App {
     this.screens.hudShow(false);
     if (fromGame || !this.stage.actors.length) this.demoBoard();
     this.stage.camera.zoom = 1.15;
+    this.audio.playMusic('menu');
     const saved = loadGame();
     this.screens.menu({
       resume: saved ? () => this.resume() : undefined,
@@ -128,6 +147,7 @@ export class App {
 
   protected applySettings() {
     this.stage.effects.gore = this.settings.gore;
+    this.audio?.setVolumes(this.settings.music, this.settings.sfx);
     if (this.game) {
       this.game.showHints = this.settings.hints;
       this.game.refreshMarks();
@@ -181,9 +201,12 @@ export class App {
       moved: (m) => this.onMoved(m),
       ended: (end) => this.onEnded(end),
       choosePromotion: (c) => choosePromotion(this.ui, c, this.sprites, () => this.screens.onClick()),
+      selected: (sq) => sq && this.audio.sfx('select', 0, 0.8),
     };
     this.game = game;
     this.mode = 'game';
+    this.audio.playMusic('game');
+    this.audio.sfx('start');
     this.screens.clear();
     this.setupHud(setup);
     game.start();
@@ -223,7 +246,11 @@ export class App {
   protected onMoved(_m: Move) {
     const g = this.game;
     if (!g) return;
-    if (g.rules.inCheck() && !g.rules.end()) this.screens.banner('Schach!', 'check');
+    if (g.rules.inCheck() && !g.rules.end()) {
+      this.screens.banner('Schach!', 'check');
+      this.audio.sfx('check');
+    }
+    if (_m.isKingsideCastle() || _m.isQueensideCastle()) this.audio.sfx('castle');
     if (g.setup.mode !== 'online') saveGame({ setup: { ...g.setup, moves: undefined }, moves: g.historyUci(), savedAt: Date.now() });
     this.screens.hudMoves(g.rules.history());
   }
@@ -244,6 +271,7 @@ export class App {
     const r = this.resultFor(end, g.setup);
     this.screens.hudStatus(`${r.title} - ${END_TEXT[end.reason]}`, false);
     this.mode = 'over';
+    this.endSound(r.good);
     const setup = g.setup;
     setTimeout(() => {
       if (this.game !== g) return;
@@ -260,6 +288,12 @@ export class App {
         view: () => this.screens.clear(),
       });
     }, 900);
+  }
+
+  /** Klang und Musik zum Spielende. */
+  protected endSound(good: boolean | null) {
+    this.audio.sfx(good === false ? 'defeat' : 'victory');
+    this.audio.playMusic(good === false ? 'defeat' : good === true ? 'victory' : 'defeat');
   }
 
   openPause() {
@@ -291,6 +325,30 @@ export class App {
       settings: () => this.screens.settings(this.settings, (s) => this.changeSettings(s), () => this.openPause(), true),
       menu: () => this.showMenu(),
     });
+  }
+
+  /** Umwandlung: Lichtsäule, Funken, Verwandlung im Blitz. */
+  protected async promoteScene(a: Actor, to: import('../shared/rules.ts').PieceSymbol) {
+    const fx = this.stage.effects;
+    const t = this.stage.tweens;
+    const p = a.screen(this.stage.flipped);
+    this.audio.sfx('promote');
+    await t.run(0.6, (k) => {
+      a.flash = k;
+      a.z = Math.sin(k * Math.PI * 0.5) * 6;
+      if (Math.random() < 0.6) fx.sparks(p.x + (Math.random() - 0.5) * 24, p.y, Math.random() * 50, 1, '#fff4c2');
+    });
+    a.kind = to;
+    fx.flash = 0.8;
+    fx.flashColor = '#fff4c2';
+    fx.sparks(p.x, p.y, 30, 30, '#ffd25e');
+    this.stage.shake(3);
+    await t.run(0.5, (k) => {
+      a.flash = 1 - k;
+      a.z = 6 * (1 - k);
+    });
+    a.z = 0;
+    a.flash = 0;
   }
 
   // ---------- Kämpfe ----------
