@@ -5,6 +5,16 @@ async function waitMoves(p: Page, n: number) {
   await p.waitForFunction((k) => (window as any).__wolf.game?.rules.history().length >= k, n, { timeout: 20_000 });
 }
 
+test('Link auf einen Raum, den es nicht gibt: Code von Hand eintippen bleibt im Online-Dialog', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/?room=ZZZZZ');
+  await expect(page.getByTestId('online-error')).toHaveText('Diesen Raum gibt es nicht');
+  await page.getByTestId('join-code').pressSequentially('ab2');
+  await expect(page.getByTestId('online')).toBeVisible();
+  await expect(page.getByTestId('join-code')).toHaveValue('ab2');
+  expect(errors).toEqual([]);
+});
+
 test('Online-Partie mit zwei Browsern: Raum, Beitritt per Link, Matt, Revanche', async ({ browser }) => {
   const ctxA = await browser.newContext({ viewport: { width: 1600, height: 900 } });
   const ctxB = await browser.newContext({ viewport: { width: 1600, height: 900 } });
@@ -27,6 +37,10 @@ test('Online-Partie mit zwei Browsern: Raum, Beitritt per Link, Matt, Revanche',
   await fastAnimations(a);
   await fastAnimations(b);
   expect(await b.evaluate(() => (window as any).__wolf.stage.flipped)).toBe(true);
+  // Wer per Link kam, hat den Titel nie weggeklickt: eine Taste darf ihn nicht aus der Partie werfen
+  await b.keyboard.press('x');
+  await expect(b.getByTestId('menu')).toHaveCount(0);
+  expect(await b.evaluate(() => (window as any).__wolf.game?.setup.mode)).toBe('online');
   // Uhr sichtbar
   await expect(a.locator('[data-clock=w]')).toHaveText(/\d+:\d\d/);
 

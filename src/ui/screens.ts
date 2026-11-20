@@ -84,6 +84,8 @@ export class Screens {
       if (done) return;
       done = true;
       document.removeEventListener('keydown', go);
+      // Der Titel wurde schon von einem anderen Bildschirm ersetzt (Einstieg per Raumlink): nichts tun
+      if (!node.isConnected) return;
       this.onClick();
       onStart();
     };
